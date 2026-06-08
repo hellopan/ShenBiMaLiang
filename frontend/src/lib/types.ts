@@ -2,12 +2,18 @@ export type GenParams = {
   temperature: number
   topP: number
   topK: number
+  contextLength: number
+  maxReplyLength: number
+  unlockContext: boolean
 }
 
 export const DEFAULT_GEN_PARAMS: GenParams = {
   temperature: 0.7,
   topP: 0.9,
   topK: 40,
+  contextLength: 128000,
+  maxReplyLength: 60000,
+  unlockContext: false,
 }
 
 export type PromptRule = {

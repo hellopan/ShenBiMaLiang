@@ -1,11 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { BookText, ChevronDown, Edit2, Lock, Plus, Sparkles, Trash2 } from "lucide-react"
+import { BookText, ChevronDown, HelpCircle, Lock, Pencil, Plus, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -19,6 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { uid } from "@/lib/store"
 import { type Chapter, type GenParams, type PromptRule, DEFAULT_GEN_PARAMS } from "@/lib/types"
@@ -37,16 +37,30 @@ type Props = {
   onUpdateChapter: (updater: (c: Chapter) => Chapter) => void
 }
 
-type RuleDialogState = {
+type SystemRuleEntry = {
+  id: string
+  name: string
+  content: string
+  isSystem: true
+}
+
+type EditDialogState = {
   open: boolean
-  editing: PromptRule | null
+  entry: SystemRuleEntry | (PromptRule & { isSystem: false }) | null
+  originalContent: string
+  originalName: string
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function AiPromptsPanel({ chapter, onUpdateChapter }: Props) {
   const [paramsOpen, setParamsOpen] = useState(true)
   const [rulesOpen, setRulesOpen] = useState(true)
-  const [ruleDialog, setRuleDialog] = useState<RuleDialogState>({ open: false, editing: null })
+  const [editDialog, setEditDialog] = useState<EditDialogState>({
+    open: false,
+    entry: null,
+    originalContent: "",
+    originalName: "",
+  })
 
   const genParams: GenParams = chapter.genParams ?? DEFAULT_GEN_PARAMS
   const customRules: PromptRule[] = chapter.customRules ?? []
@@ -57,6 +71,17 @@ export function AiPromptsPanel({ chapter, onUpdateChapter }: Props) {
       ...c,
       genParams: { ...(c.genParams ?? DEFAULT_GEN_PARAMS), ...patch },
     }))
+  }
+
+  function handleUnlockToggle(checked: boolean) {
+    const currentMax = checked ? 2_000_000 : 1_000_000
+    const clampedLength = Math.min(genParams.contextLength, currentMax)
+    patchParams({ unlockContext: checked, contextLength: clampedLength })
+  }
+
+  function handleContextLengthChange(value: number | readonly number[]) {
+    const v = Array.isArray(value) ? (value as number[])[0] : (value as number)
+    patchParams({ contextLength: v })
   }
 
   function setSystemRuleState(ruleId: string, enabled: boolean) {
@@ -78,11 +103,18 @@ export function AiPromptsPanel({ chapter, onUpdateChapter }: Props) {
     })
   }
 
-  function deleteCustomRule(id: string) {
-    onUpdateChapter((c) => ({
-      ...c,
-      customRules: (c.customRules ?? []).filter((r) => r.id !== id),
-    }))
+  function saveSystemRuleContent(id: string, content: string) {
+    onUpdateChapter((c) => {
+      if (id === SYSTEM_RULE_CHAPTER_OUTLINE) return { ...c, outline: content }
+      if (id === SYSTEM_RULE_STYLE) return { ...c, stylePrompt: content }
+      if (id === SYSTEM_RULE_FORBID) return { ...c, forbidPrompt: content }
+      if (id.startsWith("sys_act_")) {
+        const idx = parseInt(id.replace("sys_act_", ""), 10)
+        const acts = c.acts.map((a, i) => (i === idx ? { ...a, outline: content } : a))
+        return { ...c, acts }
+      }
+      return c
+    })
   }
 
   function toggleCustomRule(id: string, enabled: boolean) {
@@ -95,32 +127,82 @@ export function AiPromptsPanel({ chapter, onUpdateChapter }: Props) {
   }
 
   // Build system rules list dynamically from chapter data
-  const systemRules: Array<{ id: string; name: string; preview: string }> = [
+  const systemRules: SystemRuleEntry[] = [
     {
       id: SYSTEM_RULE_CHAPTER_OUTLINE,
       name: "章节大纲",
-      preview: chapter.outline || "（未填写）",
+      content: chapter.outline || "",
+      isSystem: true,
     },
     ...chapter.acts.map((act, i) => ({
       id: sysActId(i),
       name: `第 ${i + 1} 幕概要`,
-      preview: act.outline || "（未填写）",
+      content: act.outline || "",
+      isSystem: true as const,
     })),
     {
       id: SYSTEM_RULE_STYLE,
       name: "文风提示词",
-      preview: chapter.stylePrompt || "（未填写）",
+      content: chapter.stylePrompt || "",
+      isSystem: true,
     },
     {
       id: SYSTEM_RULE_FORBID,
       name: "禁止提示词",
-      preview: chapter.forbidPrompt || "（未填写）",
+      content: chapter.forbidPrompt || "",
+      isSystem: true,
     },
   ]
 
+  function openEditForSystem(rule: SystemRuleEntry) {
+    setEditDialog({
+      open: true,
+      entry: rule,
+      originalContent: rule.content,
+      originalName: rule.name,
+    })
+  }
+
+  function openEditForCustom(rule: PromptRule) {
+    setEditDialog({
+      open: true,
+      entry: { ...rule, isSystem: false },
+      originalContent: rule.content,
+      originalName: rule.name,
+    })
+  }
+
+  function openAddCustom() {
+    const newRule: PromptRule & { isSystem: false } = {
+      id: uid(),
+      name: "",
+      content: "",
+      enabled: true,
+      isSystem: false,
+    }
+    setEditDialog({ open: true, entry: newRule, originalContent: "", originalName: "" })
+  }
+
+  function handleDialogSave(id: string, name: string, content: string, isSystem: boolean) {
+    if (isSystem) {
+      saveSystemRuleContent(id, content)
+    } else {
+      const existing = customRules.find((r) => r.id === id)
+      saveCustomRule({
+        id,
+        name,
+        content,
+        enabled: existing?.enabled ?? true,
+      })
+    }
+    setEditDialog((s) => ({ ...s, open: false }))
+  }
+
+  const contextMax = genParams.unlockContext ? 2_000_000 : 1_000_000
+
   return (
-    <>
-      <aside className="flex h-full w-[280px] shrink-0 flex-col border-l border-border bg-sidebar">
+    <TooltipProvider>
+        <aside className="flex h-full w-70 shrink-0 flex-col border-l border-border bg-sidebar">
         {/* Header */}
         <div className="flex items-center gap-2 border-b border-border px-4 py-4">
           <Sparkles className="size-4 text-primary" />
@@ -129,20 +211,86 @@ export function AiPromptsPanel({ chapter, onUpdateChapter }: Props) {
 
         <ScrollArea className="flex-1">
           <div className="flex flex-col gap-0 p-3">
-            {/* ── Section 1: Generation params ──────────────────────────── */}
+            {/* ── Section 1: 上下文设置 ──────────────────────────────────── */}
             <Collapsible open={paramsOpen} onOpenChange={setParamsOpen}>
               <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md px-1 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground">
-                生成参数
+                上下文设置
                 <ChevronDown
                   className={cn("size-3.5 transition-transform", !paramsOpen && "-rotate-90")}
                 />
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-1">
                 <div className="flex flex-col gap-4 rounded-md border border-border bg-card/30 p-3">
-                  {/* Temperature */}
+
+                  {/* 解锁上下文长度 */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-foreground">解锁上下文长度</span>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <HelpCircle className="size-3 cursor-help text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          AI 可见的最大上下文长度
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Switch
+                      checked={genParams.unlockContext}
+                      onCheckedChange={handleUnlockToggle}
+                      className="scale-75"
+                    />
+                  </div>
+
+                  {/* 上下文长度 */}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-foreground">
+                        上下文长度
+                        <span className="ml-1 text-muted-foreground">（以词符数计）</span>
+                      </span>
+                      <span className="shrink-0 text-xs tabular-nums text-primary">
+                        {genParams.contextLength.toLocaleString()}
+                      </span>
+                    </div>
+                    <Slider
+                      min={1000}
+                      max={contextMax}
+                      step={1000}
+                      value={[genParams.contextLength]}
+                      onValueChange={handleContextLengthChange}
+                    />
+                  </div>
+
+                  {/* 最大回复长度 */}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-foreground">
+                        最大回复长度
+                        <span className="ml-1 text-muted-foreground">（以词符数计）</span>
+                      </span>
+                      <span className="shrink-0 text-xs tabular-nums text-primary">
+                        {genParams.maxReplyLength.toLocaleString()}
+                      </span>
+                    </div>
+                    <Slider
+                      min={1000}
+                      max={100000}
+                      step={1000}
+                      value={[genParams.maxReplyLength]}
+                      onValueChange={(v) => {
+                        const val = Array.isArray(v) ? (v as number[])[0] : (v as number)
+                        patchParams({ maxReplyLength: val })
+                      }}
+                    />
+                  </div>
+
+                  <Separator />
+
+                  {/* 温度 */}
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">温度</span>
+                      <span className="text-xs text-foreground">温度</span>
                       <span className="text-xs tabular-nums text-primary">
                         {genParams.temperature.toFixed(1)}
                       </span>
@@ -152,14 +300,17 @@ export function AiPromptsPanel({ chapter, onUpdateChapter }: Props) {
                       max={2}
                       step={0.1}
                       value={[genParams.temperature]}
-                      onValueChange={(v) => patchParams({ temperature: Array.isArray(v) ? v[0] : v })}
+                      onValueChange={(v) => {
+                        const val = Array.isArray(v) ? (v as number[])[0] : (v as number)
+                        patchParams({ temperature: val })
+                      }}
                     />
                   </div>
 
                   {/* Top P */}
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Top P</span>
+                      <span className="text-xs text-foreground">Top P</span>
                       <span className="text-xs tabular-nums text-primary">
                         {genParams.topP.toFixed(2)}
                       </span>
@@ -167,15 +318,18 @@ export function AiPromptsPanel({ chapter, onUpdateChapter }: Props) {
                     <Slider
                       min={0}
                       max={1}
-                      step={0.01}
+                      step={0.05}
                       value={[genParams.topP]}
-                      onValueChange={(v) => patchParams({ topP: Array.isArray(v) ? v[0] : v })}
+                      onValueChange={(v) => {
+                        const val = Array.isArray(v) ? (v as number[])[0] : (v as number)
+                        patchParams({ topP: val })
+                      }}
                     />
                   </div>
 
                   {/* Top K */}
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs text-muted-foreground">Top K</span>
+                    <span className="text-xs text-foreground">Top K</span>
                     <input
                       type="number"
                       min={1}
@@ -184,7 +338,7 @@ export function AiPromptsPanel({ chapter, onUpdateChapter }: Props) {
                       onChange={(e) =>
                         patchParams({ topK: Math.min(100, Math.max(1, Number(e.target.value) || 1)) })
                       }
-                      className="w-16 rounded border border-input bg-input/30 px-2 py-1 text-right text-xs tabular-nums text-foreground outline-none focus:border-ring"
+                      className="w-25 rounded border border-input bg-input/30 px-2 py-1 text-right text-xs tabular-nums text-foreground outline-none focus:border-ring"
                     />
                   </div>
                 </div>
@@ -193,7 +347,7 @@ export function AiPromptsPanel({ chapter, onUpdateChapter }: Props) {
 
             <Separator className="my-3" />
 
-            {/* ── Section 2: Prompt rules ──────────────────────────────── */}
+            {/* ── Section 2: 规则词条 ──────────────────────────────────── */}
             <Collapsible open={rulesOpen} onOpenChange={setRulesOpen}>
               <div className="flex items-center justify-between px-1 py-1.5">
                 <CollapsibleTrigger className="flex flex-1 items-center gap-1.5 rounded-md text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground">
@@ -211,7 +365,7 @@ export function AiPromptsPanel({ chapter, onUpdateChapter }: Props) {
                   size="icon-sm"
                   variant="ghost"
                   className="size-5 shrink-0 text-muted-foreground hover:text-foreground"
-                  onClick={() => setRuleDialog({ open: true, editing: null })}
+                  onClick={openAddCustom}
                   aria-label="添加规则"
                 >
                   <Plus className="size-3" />
@@ -227,27 +381,28 @@ export function AiPromptsPanel({ chapter, onUpdateChapter }: Props) {
                       <div
                         key={rule.id}
                         className={cn(
-                          "flex items-center gap-2 rounded-md border border-border bg-card/30 px-2 py-2 transition-opacity",
+                          "flex items-center gap-1.5 rounded-md border border-border bg-card/30 px-2 py-2 transition-opacity",
                           !enabled && "opacity-50",
                         )}
                       >
+                        <Lock className="size-3 shrink-0 text-muted-foreground" />
+                        <span className="min-w-0 flex-1 truncate text-xs text-foreground">
+                          {rule.name}
+                        </span>
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          className="size-5 shrink-0 text-muted-foreground hover:text-foreground"
+                          onClick={() => openEditForSystem(rule)}
+                          aria-label="编辑"
+                        >
+                          <Pencil className="size-3" />
+                        </Button>
                         <Switch
                           checked={enabled}
                           onCheckedChange={(v) => setSystemRuleState(rule.id, v)}
                           className="shrink-0 scale-75"
                         />
-                        <span className="min-w-0 flex-1 truncate text-xs text-foreground">
-                          {rule.name}
-                        </span>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <Badge
-                            variant="secondary"
-                            className="h-4 gap-0.5 px-1 py-0 text-[10px] text-muted-foreground"
-                          >
-                            <Lock className="size-2.5" />
-                            系统
-                          </Badge>
-                        </div>
                       </div>
                     )
                   })}
@@ -257,51 +412,36 @@ export function AiPromptsPanel({ chapter, onUpdateChapter }: Props) {
                     <div
                       key={rule.id}
                       className={cn(
-                        "flex items-center gap-2 rounded-md border border-border bg-card/30 px-2 py-2 transition-opacity",
+                        "flex items-center gap-1.5 rounded-md border border-border bg-card/30 px-2 py-2 transition-opacity",
                         !rule.enabled && "opacity-50",
                       )}
                     >
+                      <span className="size-3 shrink-0" />
+                      <span className="min-w-0 flex-1 truncate text-xs text-foreground">
+                        {rule.name}
+                      </span>
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        className="size-5 shrink-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => openEditForCustom(rule)}
+                        aria-label="编辑"
+                      >
+                        <Pencil className="size-3" />
+                      </Button>
                       <Switch
                         checked={rule.enabled}
                         onCheckedChange={(v) => toggleCustomRule(rule.id, v)}
                         className="shrink-0 scale-75"
                       />
-                      <span className="min-w-0 flex-1 truncate text-xs text-foreground">
-                        {rule.name}
-                      </span>
-                      <div className="flex shrink-0 items-center gap-0.5">
-                        <Badge className="h-4 px-1 py-0 text-[10px] bg-indigo-500/20 text-indigo-400 border-0">
-                          自定义
-                        </Badge>
-                        <Button
-                          size="icon-sm"
-                          variant="ghost"
-                          className="size-5 text-muted-foreground hover:text-foreground"
-                          onClick={() => setRuleDialog({ open: true, editing: rule })}
-                          aria-label="编辑"
-                        >
-                          <Edit2 className="size-3" />
-                        </Button>
-                        <Button
-                          size="icon-sm"
-                          variant="ghost"
-                          className="size-5 text-muted-foreground hover:text-destructive"
-                          onClick={() => deleteCustomRule(rule.id)}
-                          aria-label="删除"
-                        >
-                          <Trash2 className="size-3" />
-                        </Button>
-                      </div>
                     </div>
                   ))}
 
-                  {customRules.length === 0 && (
+                  {customRules.length === 0 && systemRules.length === 0 && (
                     <div className="py-4 text-center">
                       <div className="flex flex-col items-center gap-1.5">
                         <BookText className="size-5 text-muted-foreground/50" />
-                        <p className="text-[11px] text-muted-foreground">
-                          暂无自定义规则
-                        </p>
+                        <p className="text-[11px] text-muted-foreground">暂无规则词条</p>
                       </div>
                     </div>
                   )}
@@ -312,86 +452,100 @@ export function AiPromptsPanel({ chapter, onUpdateChapter }: Props) {
         </ScrollArea>
       </aside>
 
-      {/* ── Rule add/edit dialog ───────────────────────────────────────── */}
-      <RuleDialog
-        open={ruleDialog.open}
-        editing={ruleDialog.editing}
-        onOpenChange={(open) => setRuleDialog((s) => ({ ...s, open }))}
-        onSave={saveCustomRule}
-      />
-    </>
+      {/* ── Rule edit dialog ─────────────────────────────────────────────── */}
+      {editDialog.entry && (
+        <RuleEditDialog
+          open={editDialog.open}
+          entry={editDialog.entry}
+          originalContent={editDialog.originalContent}
+          originalName={editDialog.originalName}
+          onOpenChange={(open) => setEditDialog((s) => ({ ...s, open }))}
+          onSave={handleDialogSave}
+        />
+      )}
+    </TooltipProvider>
   )
 }
 
-// ── Rule dialog ───────────────────────────────────────────────────────────────
-function RuleDialog({
+// ── Rule edit dialog ──────────────────────────────────────────────────────────
+type EditableEntry = (SystemRuleEntry | (PromptRule & { isSystem: false }))
+
+function RuleEditDialog({
   open,
-  editing,
+  entry,
+  originalContent,
+  originalName,
   onOpenChange,
   onSave,
 }: {
   open: boolean
-  editing: PromptRule | null
+  entry: EditableEntry
+  originalContent: string
+  originalName: string
   onOpenChange: (open: boolean) => void
-  onSave: (rule: PromptRule) => void
+  onSave: (id: string, name: string, content: string, isSystem: boolean) => void
 }) {
-  const [name, setName] = useState("")
-  const [content, setContent] = useState("")
+  const [name, setName] = useState(entry.name)
+  const [content, setContent] = useState(entry.content)
 
   useEffect(() => {
     if (open) {
-      setName(editing?.name ?? "")
-      setContent(editing?.content ?? "")
+      setName(entry.name)
+      setContent(entry.content)
     }
-  }, [open, editing])
+  }, [open, entry])
 
-  function handleOpenChange(v: boolean) {
-    onOpenChange(v)
+  function handleReset() {
+    setName(originalName)
+    setContent(originalContent)
   }
 
-  function submit() {
-    if (!name.trim()) return
-    onSave({
-      id: editing?.id ?? uid(),
-      name: name.trim(),
-      content: content.trim(),
-      enabled: editing?.enabled ?? true,
-    })
-    onOpenChange(false)
+  function handleSave() {
+    if (!entry.isSystem && !name.trim()) return
+    onSave(entry.id, name.trim(), content.trim(), entry.isSystem)
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-200 max-w-[90vw] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{editing ? "编辑规则词条" : "新建规则词条"}</DialogTitle>
+          <DialogTitle>{entry.name || "新建规则词条"}</DialogTitle>
         </DialogHeader>
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="rule-name">词条名称</FieldLabel>
+            <FieldLabel htmlFor="rule-name">名称</FieldLabel>
             <Input
               id="rule-name"
               placeholder="例如：主角性格"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              disabled={entry.isSystem}
+              readOnly={entry.isSystem}
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="rule-content">词条内容</FieldLabel>
+            <FieldLabel htmlFor="rule-content">提示词内容</FieldLabel>
             <Textarea
               id="rule-content"
-              rows={5}
+              rows={6}
               placeholder="在此描述该规则词条的内容，将在 AI 生成时作为提示词注入……"
               value={content}
               onChange={(e) => setContent(e.target.value)}
+              className="w-full min-h-100"
             />
           </Field>
         </FieldGroup>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            取消
+            关闭
           </Button>
-          <Button onClick={submit} disabled={!name.trim()}>
+          <Button variant="outline" onClick={handleReset}>
+            重置
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={!entry.isSystem && !name.trim()}
+          >
             保存
           </Button>
         </DialogFooter>
