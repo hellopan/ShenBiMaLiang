@@ -1,3 +1,46 @@
+// ── Act color palette ─────────────────────────────────────────────────────────
+export const ACT_COLORS = [
+  "#6366f1", // indigo
+  "#f43f5e", // rose
+  "#10b981", // emerald
+  "#f59e0b", // amber
+  "#06b6d4", // cyan
+  "#ec4899", // pink
+  "#84cc16", // lime
+]
+
+export function getActColor(index: number): string {
+  return ACT_COLORS[index % ACT_COLORS.length]
+}
+
+// ── Per-act AI configuration ──────────────────────────────────────────────────
+export type ActAIConfig = {
+  actId: string
+  modelId: string
+  temperature: number
+  topP: number
+  topK: number
+  maxReplyLength: number
+  contextLength: number
+  contextUnlocked: boolean
+  /** enabled state for both system rules (sys_*) and custom rules (by rule id) */
+  ruleStates: Record<string, boolean>
+}
+
+export function makeDefaultActConfig(actId: string, modelId = ""): ActAIConfig {
+  return {
+    actId,
+    modelId,
+    temperature: 0.7,
+    topP: 0.9,
+    topK: 40,
+    maxReplyLength: 60000,
+    contextLength: 128000,
+    contextUnlocked: false,
+    ruleStates: {},
+  }
+}
+
 export type GenParams = {
   temperature: number
   topP: number
@@ -5,6 +48,34 @@ export type GenParams = {
   contextLength: number
   maxReplyLength: number
   unlockContext: boolean
+}
+
+// ── Novel-level AI generation config (outline vs content) ─────────────────────
+export type OutlineGenConfig = {
+  modelId: string
+  temperature: number
+  topP: number
+  topK: number
+  contextLength: number
+  maxReplyLength: number
+}
+
+export const DEFAULT_OUTLINE_CONFIG: OutlineGenConfig = {
+  modelId: "",
+  temperature: 0.3,
+  topP: 0.8,
+  topK: 20,
+  contextLength: 128000,
+  maxReplyLength: 60000,
+}
+
+export const DEFAULT_CONTENT_CONFIG: OutlineGenConfig = {
+  modelId: "",
+  temperature: 0.7,
+  topP: 0.9,
+  topK: 40,
+  contextLength: 128000,
+  maxReplyLength: 60000,
 }
 
 export const DEFAULT_GEN_PARAMS: GenParams = {
@@ -50,6 +121,13 @@ export type Novel = {
   synopsis: string
   chapters: Chapter[]
   updatedAt: number
+  createdAt?: number
+  targetWordCount?: number
+  writingLanguage?: string
+  stylePrompt?: string
+  forbiddenPrompt?: string
+  outlineConfig?: OutlineGenConfig
+  contentConfig?: OutlineGenConfig
 }
 
 export type Provider = "OpenAI" | "Anthropic" | "DeepSeek" | "Custom"
@@ -76,6 +154,7 @@ export type Entry = {
   regexPatterns: string
   weight: number
   active: boolean
+  novelId?: string
 }
 
 export function wordCount(text: string): number {

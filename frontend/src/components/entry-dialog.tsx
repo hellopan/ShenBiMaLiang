@@ -174,7 +174,7 @@ export function EntryDialog({ open, onOpenChange, initial, onSave }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="w-200 max-w-[90vw] max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{initial ? "编辑词条" : "新建词条"}</DialogTitle>
           <DialogDescription>

@@ -15,6 +15,13 @@ const seedNovels: Novel[] = [
     synopsis:
       "少年林墨自边陲小镇崛起，手持残破古剑，踏上问鼎星河之巅的修行长路。一场跨越万载的阴谋，正随他的脚步缓缓揭开。",
     updatedAt: Date.now() - 1000 * 60 * 42,
+    createdAt: Date.now() - 1000 * 60 * 60 * 24 * 30,
+    targetWordCount: 3000000,
+    writingLanguage: "现代白话文",
+    stylePrompt: "文笔细腻，善用环境描写烘托情绪，人物心理描写深刻，战斗场面节奏明快。",
+    forbiddenPrompt: "禁止使用网络流行语，避免现代词汇，不使用低俗描写。",
+    outlineConfig: { modelId: "m1", temperature: 0.3, topP: 0.8, topK: 20, contextLength: 128000, maxReplyLength: 60000 },
+    contentConfig: { modelId: "m1", temperature: 0.7, topP: 0.9, topK: 40, contextLength: 128000, maxReplyLength: 60000 },
     chapters: [
       {
         id: "c1",
@@ -57,6 +64,7 @@ const seedNovels: Novel[] = [
     synopsis:
       "在常年笼罩浓雾的港口城市，落魄侦探沈瑜接手一桩离奇失踪案。线索如雾中灯火，明灭不定，真相却比浓雾更令人窒息。",
     updatedAt: Date.now() - 1000 * 60 * 60 * 5,
+    createdAt: Date.now() - 1000 * 60 * 60 * 24 * 15,
     chapters: [
       {
         id: "c3",
@@ -74,6 +82,7 @@ const seedNovels: Novel[] = [
     synopsis:
       "人类最后的方舟星舰在深空中航行了三百年。当唯一的导航AI开始产生自我意识，船上幸存者们必须面对一个抉择：信任，还是毁灭。",
     updatedAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
+    createdAt: Date.now() - 1000 * 60 * 60 * 24 * 7,
     chapters: [
       {
         id: "c4",
@@ -128,6 +137,7 @@ const seedEntries: Entry[] = [
     regexPatterns: "林墨|墨儿",
     weight: 10,
     active: true,
+    novelId: "n1",
   },
   {
     id: "e2",
@@ -139,6 +149,7 @@ const seedEntries: Entry[] = [
     regexPatterns: "青云宗|青云山",
     weight: 8,
     active: true,
+    novelId: "n1",
   },
   {
     id: "e3",
@@ -150,6 +161,7 @@ const seedEntries: Entry[] = [
     regexPatterns: "残剑|古剑",
     weight: 9,
     active: true,
+    novelId: "n1",
   },
   {
     id: "e4",
@@ -161,6 +173,29 @@ const seedEntries: Entry[] = [
     regexPatterns: "混沌剑诀",
     weight: 7,
     active: false,
+    novelId: "n1",
+  },
+  {
+    id: "e5",
+    title: "沈瑜",
+    category: "角色",
+    content: "落魄侦探，曾是警局明星探员，因一桩冤案被迫离职。性格沉默寡言，观察力极强，有酗酒习惯。对真相有近乎偏执的执念。",
+    keywords: ["沈瑜", "侦探", "主角"],
+    regexPatterns: "沈瑜|沈探长",
+    weight: 10,
+    active: true,
+    novelId: "n2",
+  },
+  {
+    id: "e6",
+    title: "雾都",
+    category: "地名",
+    content: "常年笼罩浓雾的港口城市，工业革命遗留下无处不在的烟囱与铁架。雾气是这座城市的保护色，也是罪恶滋生的温床。",
+    keywords: ["雾都", "港口", "城市"],
+    regexPatterns: "雾都|港口城市",
+    weight: 8,
+    active: true,
+    novelId: "n2",
   },
 ]
 

@@ -1,76 +1,190 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, BookMarked, Settings } from "lucide-react"
+import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { BookOpen, Plus, Search, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
-import { AppLogo } from "@/components/app-logo"
-import { NovelCard } from "@/components/novel-card"
 import { NewNovelDialog } from "@/components/new-novel-dialog"
+import { AppSidebar } from "@/components/layout/app-sidebar"
 import { useStore } from "@/lib/store"
+import { type Novel, novelWordCount, relativeTime } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
+// ── Genre → gradient mapping ───────────────────────────────────────────────
+const GENRE_GRADIENTS: Record<string, string> = {
+  玄幻修真: "from-indigo-600 to-purple-700",
+  悬疑推理: "from-slate-600 to-gray-800",
+  科幻太空: "from-cyan-600 to-blue-800",
+  现代都市: "from-rose-500 to-pink-700",
+  历史架空: "from-amber-600 to-orange-700",
+  言情: "from-pink-500 to-rose-600",
+}
+const DEFAULT_GRADIENT = "from-violet-600 to-indigo-700"
+
+function getGradient(genre: string): string {
+  return GENRE_GRADIENTS[genre] ?? DEFAULT_GRADIENT
+}
+
+// ── Home page ──────────────────────────────────────────────────────────────
 export default function HomePage() {
+  const router = useRouter()
   const { novels, createNovel, deleteNovel } = useStore()
   const [dialogOpen, setDialogOpen] = useState(false)
-  const router = useRouter()
+  const [query, setQuery] = useState("")
+  const [filter, setFilter] = useState<"全部" | "最近更新">("全部")
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    let list = novels
+    if (q) {
+      list = list.filter((n) => n.title.toLowerCase().includes(q) || n.genre.toLowerCase().includes(q))
+    }
+    if (filter === "最近更新") {
+      list = [...list].sort((a, b) => b.updatedAt - a.updatedAt)
+    }
+    return list
+  }, [novels, query, filter])
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <AppLogo />
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.push("/settings")}
-              aria-label="设置"
-            >
-              <Settings />
-            </Button>
+    <div className="flex h-screen overflow-hidden bg-background">
+      <AppSidebar mode="home" activeItem="bookshelf" />
+
+      {/* ── Right content area ───────────────────────────────────────────── */}
+      <main className="flex flex-1 flex-col overflow-hidden">
+        {/* Header row */}
+        <div className="flex items-center justify-between px-8 pt-8 pb-4">
+          <div className="flex flex-col gap-0.5">
+            <h1 className="text-2xl font-bold tracking-tight">我的小说</h1>
+            <p className="text-sm text-muted-foreground">共 {novels.length} 部作品</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* New novel button */}
             <Button onClick={() => setDialogOpen(true)}>
               <Plus data-icon="inline-start" />
               新建小说
             </Button>
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="搜索书名…"
+                className="h-9 w-48 pl-9 text-sm"
+              />
+            </div>
+            {/* Filter tabs */}
+            <div className="flex items-center gap-0.5 rounded-lg bg-muted p-[3px]">
+              {(["全部", "最近更新"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={cn(
+                    "rounded-md px-3 py-1 text-xs font-medium transition-colors",
+                    filter === f
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-10">
-        <div className="mb-8 flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">我的书架</h1>
-          <p className="text-sm text-muted-foreground">
-            共 {novels.length} 部作品 · 继续你的创作
-          </p>
+        {/* Novel list */}
+        <div className="flex-1 overflow-y-auto px-8 pb-8">
+          {filtered.length === 0 ? (
+            novels.length === 0 ? (
+              <Empty className="mt-16 rounded-xl border border-dashed border-border py-20">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <BookOpen />
+                  </EmptyMedia>
+                  <EmptyTitle>书架空空如也</EmptyTitle>
+                  <EmptyDescription>还没有任何作品，点击新建开始创作。</EmptyDescription>
+                </EmptyHeader>
+                <Button onClick={() => setDialogOpen(true)}>
+                  <Plus data-icon="inline-start" />
+                  新建小说
+                </Button>
+              </Empty>
+            ) : (
+              <p className="mt-16 text-center text-sm text-muted-foreground">没有符合搜索条件的小说</p>
+            )
+          ) : (
+            <div className="flex flex-wrap gap-5">
+              {filtered.map((novel) => (
+                <NovelCard key={novel.id} novel={novel} onDelete={deleteNovel} />
+              ))}
+            </div>
+          )}
         </div>
-
-        {novels.length === 0 ? (
-          <Empty className="rounded-xl border border-dashed border-border py-20">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <BookMarked />
-              </EmptyMedia>
-              <EmptyTitle>书架空空如也</EmptyTitle>
-              <EmptyDescription>
-                还没有任何作品，点击下方按钮创建你的第一部小说吧。
-              </EmptyDescription>
-            </EmptyHeader>
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus data-icon="inline-start" />
-              新建小说
-            </Button>
-          </Empty>
-        ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {novels.map((novel) => (
-              <NovelCard key={novel.id} novel={novel} onDelete={deleteNovel} />
-            ))}
-          </div>
-        )}
       </main>
 
       <NewNovelDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreate={createNovel} />
+    </div>
+  )
+}
+
+// ── Novel card ─────────────────────────────────────────────────────────────
+function NovelCard({ novel, onDelete }: { novel: Novel; onDelete: (id: string) => void }) {
+  const router = useRouter()
+  const words = novelWordCount(novel)
+  const gradient = getGradient(novel.genre)
+
+  return (
+    <div
+      className="group shrink-0 overflow-hidden rounded-xl border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/10"
+      style={{ width: 360, height: 500 }}
+    >
+      {/* Cover — fixed 380px tall */}
+      <div
+        className={cn("relative w-full overflow-hidden bg-gradient-to-br", gradient)}
+        style={{ height: 380 }}
+      >
+        {/* Bottom gradient + synopsis */}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent px-4 pb-4 pt-16">
+          <p className="line-clamp-3 text-sm leading-relaxed text-white/90">
+            {novel.synopsis || "暂无简介"}
+          </p>
+        </div>
+
+        {/* Hover action overlay */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/55 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          <Button
+            className="h-11 gap-2 rounded-xl px-6 text-base font-medium shadow-lg"
+            onClick={() => router.push(`/novel/${novel.id}`)}
+          >
+            <BookOpen className="size-5" />
+            打开
+          </Button>
+          <Button
+            variant="outline"
+            className="h-11 gap-2 rounded-xl border-white/30 bg-white/10 px-6 text-base font-medium text-white shadow-lg backdrop-blur-sm hover:bg-white/20 hover:text-white"
+            onClick={() => onDelete(novel.id)}
+          >
+            <Trash2 className="size-5" />
+            删除
+          </Button>
+        </div>
+      </div>
+
+      {/* Info — fixed 120px tall */}
+      <div className="flex flex-col justify-between p-4" style={{ height: 120 }}>
+        <p className="truncate text-sm font-semibold leading-snug">{novel.title}</p>
+        <div className="flex items-center justify-between gap-2">
+          <Badge variant="secondary" className="px-1.5 py-0 text-[11px]">
+            {novel.genre}
+          </Badge>
+          <span className="text-[11px] text-muted-foreground">{words.toLocaleString()} 字</span>
+        </div>
+        <p className="text-[11px] text-muted-foreground">{relativeTime(novel.updatedAt)}</p>
+      </div>
     </div>
   )
 }

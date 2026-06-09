@@ -45,7 +45,7 @@ export function NewNovelDialog({ open, onOpenChange, onCreate }: Props) {
         onOpenChange(o)
       }}
     >
-      <DialogContent>
+      <DialogContent className="w-200 max-w-[90vw] max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>新建小说</DialogTitle>
           <DialogDescription>填写基本信息，开启你的创作之旅。</DialogDescription>

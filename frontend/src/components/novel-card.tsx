@@ -51,8 +51,8 @@ export function NovelCard({ novel, onDelete }: Props) {
 
       {/* Hover actions */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-gradient-to-t from-card via-card/95 to-transparent p-4 opacity-0 transition-opacity duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
-        <Button size="sm" onClick={() => router.push(`/editor/${novel.id}`)}>
-          <BookOpen data-icon="inline-start" />
+        <Button size="sm" onClick={() => router.push(`/novel/${novel.id}`)}>
+          <BookOpen />
           打开
         </Button>
         <Button
@@ -61,7 +61,7 @@ export function NovelCard({ novel, onDelete }: Props) {
           onClick={() => onDelete(novel.id)}
           aria-label="删除小说"
         >
-          <Trash2 data-icon="inline-start" />
+          <Trash2 />
           删除
         </Button>
       </div>

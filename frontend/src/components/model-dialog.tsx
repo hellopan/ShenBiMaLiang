@@ -149,7 +149,7 @@ export function ModelDialog({ open, onOpenChange, initial, onSave }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="w-200 max-w-[90vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{initial ? "编辑模型配置" : "添加模型"}</DialogTitle>
           <DialogDescription>连接模型提供商，选择需要启用的模型。</DialogDescription>

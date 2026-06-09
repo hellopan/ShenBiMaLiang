@@ -1,28 +1,20 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ChevronDown, Play, Plus, Trash2 } from "lucide-react"
+import { ChevronDown, Play, Plus, Settings, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { type Chapter, type Act, type ModelConfig, wordCount } from "@/lib/types"
+import { type Chapter, type Act, wordCount, getActColor } from "@/lib/types"
 
 const MOCK_EXPAND =
   "夜色如墨，泼洒在青云山脉连绵的峰峦之上。林墨独自盘膝坐在断崖边，残剑横于膝前，剑身上那层经年的锈迹在月光下泛着幽冷的微光。他闭目凝神，引导着体内那道初醒的灵脉缓缓流转，每一次呼吸都仿佛与天地间无形的气机共鸣。\n\n忽然，残剑轻轻一颤，发出一声几不可闻的清鸣。林墨睁开双眼，眸中映着剑光，亦映着远方翻涌的云海。他知道，从踏入裂谷的那一刻起，命运的齿轮便已不可逆转地转动起来。前路漫漫，纵有万难，他也要握紧手中这柄古剑，一步步走向那传说中的星河之巅。"
 
 type Props = {
   chapter: Chapter
-  models: ModelConfig[]
+  activeActId: string | null
   onChangeTitle: (title: string) => void
   onChangeOutline: (outline: string) => void
   onChangeStylePrompt: (v: string) => void
@@ -30,11 +22,13 @@ type Props = {
   onChangeAct: (actId: string, patch: Partial<Act>) => void
   onAddAct: () => void
   onDeleteAct: (actId: string) => void
+  onActFocus: (actId: string) => void
+  onActSettingsClick: (actId: string) => void
 }
 
 export function ChapterEditor({
   chapter,
-  models,
+  activeActId,
   onChangeTitle,
   onChangeOutline,
   onChangeStylePrompt,
@@ -42,12 +36,12 @@ export function ChapterEditor({
   onChangeAct,
   onAddAct,
   onDeleteAct,
+  onActFocus,
+  onActSettingsClick,
 }: Props) {
   const [outlineOpen, setOutlineOpen] = useState(true)
   const [styleOpen, setStyleOpen] = useState(false)
   const [forbidOpen, setForbidOpen] = useState(false)
-
-  const activeModels = models.filter((m) => m.active)
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-8 py-8">
@@ -132,9 +126,12 @@ export function ChapterEditor({
             key={act.id}
             index={i}
             act={act}
-            models={activeModels}
+            color={getActColor(i)}
+            isActive={act.id === activeActId}
             onChange={(patch) => onChangeAct(act.id, patch)}
             onDelete={() => onDeleteAct(act.id)}
+            onFocus={() => onActFocus(act.id)}
+            onSettingsClick={() => onActSettingsClick(act.id)}
             canDelete={chapter.acts.length > 1}
           />
         ))}
@@ -152,16 +149,22 @@ export function ChapterEditor({
 function ActBlock({
   index,
   act,
-  models,
+  color,
+  isActive,
   onChange,
   onDelete,
+  onFocus,
+  onSettingsClick,
   canDelete,
 }: {
   index: number
   act: Act
-  models: ModelConfig[]
+  color: string
+  isActive: boolean
   onChange: (patch: Partial<Act>) => void
   onDelete: () => void
+  onFocus: () => void
+  onSettingsClick: () => void
   canDelete: boolean
 }) {
   const [generating, setGenerating] = useState(false)
@@ -185,9 +188,7 @@ function ActBlock({
     stopTimer()
     setGenerating(true)
     const full = MOCK_EXPAND
-    let i = act.content.length > 0 ? act.content.length : 0
     const base = act.content ? `${act.content}\n\n` : ""
-    // Reset to base before streaming
     onChange({ content: base })
     let streamed = 0
     timerRef.current = setInterval(() => {
@@ -200,54 +201,48 @@ function ActBlock({
     }, 20)
   }
 
-  const selectedModel = models.find((m) => m.id === act.modelId) ?? models[0]
-
   return (
-    <section className="rounded-lg border border-border bg-card/40">
+    <section
+      className="rounded-lg border bg-card/40"
+      style={{
+        borderColor: isActive ? color : undefined,
+        borderWidth: isActive ? "2px" : "1px",
+        transition: "border-color 0.25s ease",
+      }}
+    >
       <header className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+        {/* Colored dot — always visible, encodes act identity */}
+        <span
+          className="inline-block shrink-0 rounded-full"
+          style={{ width: 8, height: 8, backgroundColor: color }}
+        />
         <span className="text-sm font-medium text-foreground">第 {index + 1} 幕</span>
         <span className="text-xs tabular-nums text-muted-foreground">
           {wordCount(act.content)} 字
         </span>
 
-        {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Per-act model selector */}
-        {models.length > 0 && (
-          <Select
-            value={act.modelId ?? models[0]?.id ?? ""}
-            onValueChange={(v) => onChange({ modelId: v ?? undefined })}
-          >
-            <SelectTrigger
-              size="sm"
-              className="h-6 w-auto gap-1 border-0 bg-transparent px-1.5 text-xs text-muted-foreground shadow-none hover:bg-accent hover:text-foreground focus:ring-0"
-            >
-              <SelectValue>
-                {() => selectedModel?.label ?? "选择模型"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent align="end">
-              <SelectGroup>
-                {models.map((m) => (
-                  <SelectItem key={m.id} value={m.id} className="text-xs">
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        )}
+        {/* Settings icon — focuses this act's config in right panel */}
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          onClick={onSettingsClick}
+          aria-label="AI 配置"
+          className={cn(
+            "h-6 w-6 transition-colors",
+            isActive ? "text-primary hover:text-primary" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <Settings className="size-3.5" />
+        </Button>
 
         {/* Expand button */}
         <Button
           size="sm"
           variant="ghost"
           onClick={handleExpand}
-          className={cn(
-            "h-6 gap-1 px-2 text-xs",
-            generating && "text-primary",
-          )}
+          className={cn("h-6 gap-1 px-2 text-xs", generating && "text-primary")}
         >
           <Play className={cn("size-3", generating && "animate-pulse")} />
           {generating ? "停止" : "扩写"}
@@ -271,6 +266,7 @@ function ActBlock({
         <Textarea
           value={act.outline}
           onChange={(e) => onChange({ outline: e.target.value })}
+          onFocus={onFocus}
           placeholder="本幕大纲：这一幕要发生什么？"
           rows={2}
           className="resize-none border-0 bg-transparent px-0 text-sm text-muted-foreground shadow-none focus-visible:ring-0 dark:bg-transparent"
@@ -279,6 +275,7 @@ function ActBlock({
         <Textarea
           value={act.content}
           onChange={(e) => onChange({ content: e.target.value })}
+          onFocus={onFocus}
           placeholder="正文内容……"
           rows={6}
           className="resize-none border-0 bg-transparent px-0 text-[15px] leading-relaxed shadow-none focus-visible:ring-0 dark:bg-transparent"

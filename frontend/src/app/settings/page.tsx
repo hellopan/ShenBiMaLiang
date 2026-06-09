@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Plus, Pencil, Trash2, Cpu, Settings2, Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
-import { PageHeader } from "@/components/page-header"
+import { AppSidebar } from "@/components/layout/app-sidebar"
 import { ModelDialog } from "@/components/model-dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -54,10 +54,17 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <PageHeader title="设置" />
+    <div className="flex h-screen overflow-hidden bg-background">
+      <AppSidebar mode="home" activeItem="settings" />
 
-      <main className="mx-auto flex max-w-4xl flex-col gap-10 px-6 py-10">
+      <main className="flex-1 overflow-y-auto">
+        {/* Header */}
+        <div className="px-8 pt-8 pb-6">
+          <h1 className="text-2xl font-bold tracking-tight">设置</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">管理模型配置与界面偏好</p>
+        </div>
+
+        <div className="flex max-w-3xl flex-col gap-10 px-8 pb-12">
         {/* 模型配置 */}
         <section className="flex flex-col gap-4">
           <div className="flex items-end justify-between gap-4">
@@ -154,6 +161,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </section>
+        </div>
       </main>
 
       <ModelDialog
