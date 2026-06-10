@@ -1,17 +1,20 @@
 "use client"
 
-import { use, useMemo, useState } from "react"
+import React, { use, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { notFound } from "next/navigation"
 import {
   BookOpen,
+  CalendarRange,
   ChevronDown,
   Download,
   FileText,
+  GitFork,
   GripVertical,
   PenLine,
   RefreshCw,
   Sparkles,
+  Users,
   Wand2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -68,6 +71,9 @@ const SECTION_TITLES: Record<string, string> = {
   outline: "大纲生成",
   chapters: "章节概览",
   encyclopedia: "世界词条",
+  characters: "人物关系图",
+  timeline: "时间线",
+  "character-status": "人物状态",
   export: "导出",
 }
 
@@ -269,6 +275,9 @@ export default function NovelDetailPage({ params }: { params: Promise<{ id: stri
               <SectionChapterOverview novel={novel} novelId={id} />
             )}
             {activeSection === "encyclopedia" && <EncyclopediaPanel novelId={id} />}
+            {activeSection === "characters" && <SectionPlaceholder icon={GitFork} title="人物关系图" description="可视化展示小说中角色之间的关系网络，支持自定义关系类型" />}
+            {activeSection === "timeline" && <SectionPlaceholder icon={CalendarRange} title="时间线" description="梳理故事发展的时间轴，追踪关键事件节点与时间跨度" />}
+            {activeSection === "character-status" && <SectionPlaceholder icon={Users} title="人物状态" description="追踪每个章节中角色的状态变化、属性成长与当前处境" />}
             {activeSection === "export" && <SectionExport novel={novel} />}
           </div>
         </main>
@@ -778,6 +787,28 @@ function SectionExport({ novel }: { novel: Novel }) {
           </Tooltip>
         </div>
       </Card>
+    </div>
+  )
+}
+
+// ── Section: 占位页面 ──────────────────────────────────────────────────────
+function SectionPlaceholder({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  description: string
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-4">
+      <div className="p-4 rounded-2xl bg-muted">
+        <Icon className="size-10 text-muted-foreground" />
+      </div>
+      <h2 className="text-xl font-semibold">{title}</h2>
+      <p className="text-muted-foreground text-sm text-center max-w-sm">{description}</p>
+      <Badge variant="outline" className="text-xs">即将推出</Badge>
     </div>
   )
 }
