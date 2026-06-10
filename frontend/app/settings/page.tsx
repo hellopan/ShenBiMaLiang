@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTheme } from 'next-themes'
 import { Plus, Pencil, Trash2, Cpu, Settings2, Sparkles, Sun, Moon } from 'lucide-react'
 import { AppSidebar } from '@/components/layout/app-sidebar'
@@ -202,6 +202,11 @@ const THEMES = [
 
 function ThemeSettingRow() {
   const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => setMounted(true), [])
+
+  const currentTheme = mounted ? theme : undefined
 
   return (
     <div className="flex items-center justify-between gap-4">
@@ -213,11 +218,13 @@ function ThemeSettingRow() {
         {THEMES.map(({ value, label, icon: Icon }) => (
           <button
             key={value}
+            type="button"
+            data-theme-active={currentTheme === value || undefined}
             onClick={() => setTheme(value)}
             className={cn(
               'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
-              theme === value
-                ? 'bg-background text-foreground shadow-sm'
+              currentTheme === value
+                ? cn('text-foreground shadow-sm', currentTheme !== 'glass' && 'bg-background')
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >

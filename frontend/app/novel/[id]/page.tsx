@@ -71,9 +71,9 @@ const SECTION_TITLES: Record<string, string> = {
   outline: "大纲生成",
   chapters: "章节概览",
   encyclopedia: "世界词条",
-  characters: "人物关系图",
   timeline: "时间线",
   "character-status": "人物状态",
+  characters: "人物关系图",
   export: "导出",
 }
 
@@ -275,9 +275,9 @@ export default function NovelDetailPage({ params }: { params: Promise<{ id: stri
               <SectionChapterOverview novel={novel} novelId={id} />
             )}
             {activeSection === "encyclopedia" && <EncyclopediaPanel novelId={id} />}
-            {activeSection === "characters" && <SectionPlaceholder icon={GitFork} title="人物关系图" description="可视化展示小说中角色之间的关系网络，支持自定义关系类型" />}
             {activeSection === "timeline" && <SectionPlaceholder icon={CalendarRange} title="时间线" description="梳理故事发展的时间轴，追踪关键事件节点与时间跨度" />}
             {activeSection === "character-status" && <SectionPlaceholder icon={Users} title="人物状态" description="追踪每个章节中角色的状态变化、属性成长与当前处境" />}
+            {activeSection === "characters" && <SectionPlaceholder icon={GitFork} title="人物关系图" description="可视化展示小说中角色之间的关系网络，支持自定义关系类型" />}
             {activeSection === "export" && <SectionExport novel={novel} />}
           </div>
         </main>

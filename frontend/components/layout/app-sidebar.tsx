@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ComponentType, type CSSProperties } from "react"
 import { useRouter } from "next/navigation"
 import {
   BarChart2,
@@ -43,9 +43,9 @@ const NOVEL_NAV_TOP = [
 ]
 
 const NOVEL_NAV_EXTRA = [
-  { key: "characters", label: "人物关系图", icon: GitFork },
   { key: "timeline", label: "时间线", icon: CalendarRange },
   { key: "character-status", label: "人物状态", icon: Users },
+  { key: "characters", label: "人物关系图", icon: GitFork },
 ]
 
 const NOVEL_BOTTOM_NAV = [
@@ -87,20 +87,15 @@ export function AppSidebar({
 
   return (
     <aside
-      className="flex w-60 shrink-0 flex-col overflow-hidden"
-      style={{
-        background: "rgba(255, 255, 255, 0.05)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        borderRight: "1px solid rgba(255, 255, 255, 0.10)",
-      }}
+      data-app-sidebar
+      className="flex w-60 shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar"
     >
       {/* ── Logo ──────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2.5 px-4 pt-6 pb-4">
         <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-lg shadow-indigo-500/30">
           <Feather className="size-4.5" />
         </span>
-        <span className="text-base font-semibold tracking-tight text-white">神笔马良</span>
+        <span className="text-base font-semibold tracking-tight text-sidebar-foreground">神笔马良</span>
       </div>
 
       <Separator />
@@ -118,6 +113,38 @@ export function AppSidebar({
   )
 }
 
+// ── Nav button ────────────────────────────────────────────────────────────
+
+function SidebarNavButton({
+  isActive,
+  onClick,
+  icon: Icon,
+  label,
+  style,
+}: {
+  isActive?: boolean
+  onClick: () => void
+  icon: ComponentType<{ className?: string }>
+  label: string
+  style?: CSSProperties
+}) {
+  return (
+    <button
+      type="button"
+      data-nav-active={isActive || undefined}
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm transition-all duration-200",
+        !isActive && "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+      )}
+      style={style}
+    >
+      <Icon className="size-4 shrink-0" />
+      {label}
+    </button>
+  )
+}
+
 // ── Home sidebar ──────────────────────────────────────────────────────────
 
 function HomeSidebar({
@@ -132,24 +159,15 @@ function HomeSidebar({
   return (
     <>
       <nav className="flex flex-col gap-0.5 p-2 pt-3 flex-1">
-        {HOME_NAV.map(({ key, label, icon: Icon, href }) => {
-          const isActive = activeItem === key
-          return (
-            <button
-              key={key}
-              onClick={() => router.push(href)}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm transition-all duration-200",
-                isActive
-                  ? "bg-indigo-500/20 text-indigo-300 font-medium"
-                  : "text-white/60 hover:bg-white/8 hover:text-white",
-              )}
-            >
-              <Icon className="size-4 shrink-0" />
-              {label}
-            </button>
-          )
-        })}
+        {HOME_NAV.map(({ key, label, icon, href }) => (
+          <SidebarNavButton
+            key={key}
+            isActive={activeItem === key}
+            onClick={() => router.push(href)}
+            icon={icon}
+            label={label}
+          />
+        ))}
       </nav>
     </>
   )
@@ -172,28 +190,21 @@ function NovelSidebar({
     <>
       {/* Novel nav items — staggered entrance */}
       <nav className="flex flex-col gap-0.5 p-2 pt-3 flex-1 overflow-y-auto">
-        {NOVEL_NAV_TOP.map(({ key, label, icon: Icon }, index) => {
+        {NOVEL_NAV_TOP.map(({ key, label, icon }, index) => {
           const delay = index * 40
-          const isActive = activeItem === key
           return (
-            <button
+            <SidebarNavButton
               key={key}
+              isActive={activeItem === key}
               onClick={() => onNavigate?.(key)}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm",
-                isActive
-                  ? "bg-indigo-500/20 text-indigo-300 font-medium"
-                  : "text-white/60 hover:bg-white/8 hover:text-white",
-              )}
+              icon={icon}
+              label={label}
               style={{
                 opacity: mounted ? 1 : 0,
                 transform: mounted ? "translateY(0)" : "translateY(-16px)",
                 transition: `opacity 280ms ease-out ${delay}ms, transform 280ms ease-out ${delay}ms, background-color 200ms, color 200ms`,
               }}
-            >
-              <Icon className="size-4 shrink-0" />
-              {label}
-            </button>
+            />
           )
         })}
 
@@ -201,28 +212,21 @@ function NovelSidebar({
           <Separator />
         </div>
 
-        {NOVEL_NAV_EXTRA.map(({ key, label, icon: Icon }, index) => {
+        {NOVEL_NAV_EXTRA.map(({ key, label, icon }, index) => {
           const delay = (NOVEL_NAV_TOP.length + index) * 40
-          const isActive = activeItem === key
           return (
-            <button
+            <SidebarNavButton
               key={key}
+              isActive={activeItem === key}
               onClick={() => onNavigate?.(key)}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm",
-                isActive
-                  ? "bg-indigo-500/20 text-indigo-300 font-medium"
-                  : "text-white/60 hover:bg-white/8 hover:text-white",
-              )}
+              icon={icon}
+              label={label}
               style={{
                 opacity: mounted ? 1 : 0,
                 transform: mounted ? "translateY(0)" : "translateY(-16px)",
                 transition: `opacity 280ms ease-out ${delay}ms, transform 280ms ease-out ${delay}ms, background-color 200ms, color 200ms`,
               }}
-            >
-              <Icon className="size-4 shrink-0" />
-              {label}
-            </button>
+            />
           )
         })}
       </nav>
@@ -237,15 +241,13 @@ function NovelSidebar({
       >
         <Separator />
         <nav className="flex flex-col gap-0.5 p-2 pb-3">
-          {NOVEL_BOTTOM_NAV.map(({ key, label, icon: Icon, href }) => (
-            <button
+          {NOVEL_BOTTOM_NAV.map(({ key, label, icon, href }) => (
+            <SidebarNavButton
               key={key}
               onClick={() => router.push(href)}
-              className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-white/50 transition-all duration-200 hover:bg-white/8 hover:text-white"
-            >
-              <Icon className="size-4 shrink-0" />
-              {label}
-            </button>
+              icon={icon}
+              label={label}
+            />
           ))}
         </nav>
       </div>

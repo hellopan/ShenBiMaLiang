@@ -295,6 +295,33 @@ html.glass [data-slot="separator"] {
   background-color: rgba(255, 255, 255, 0.10) !important;
 }
 
+/* ── Glass-only: app sidebar ────────────────────────────────────────────── */
+html.glass [data-app-sidebar] {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right-color: rgba(255, 255, 255, 0.10);
+}
+
+/* ── Sidebar nav: active item per theme ─────────────────────────────────── */
+html.glass [data-app-sidebar] [data-nav-active],
+html.dark [data-app-sidebar] [data-nav-active] {
+  background-color: #6366f180;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+html.light [data-app-sidebar] [data-nav-active] {
+  background-color: rgba(99, 102, 241, 0.10);
+  color: #6366f1;
+  font-weight: 500;
+}
+
+/* ── Glass-only: theme switcher active button ───────────────────────────── */
+html.glass [data-theme-active] {
+  background-color: #ffffff21;
+}
+
 /* ── Glass-only: Muted / secondary backgrounds ──────────────────────────── */
 html.glass .bg-muted {
   background-color: rgba(255, 255, 255, 0.06) !important;
