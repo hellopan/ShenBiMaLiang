@@ -126,7 +126,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-transparent">
       <ChapterSidebar
         novel={novel}
         activeChapterId={activeChapter.id}

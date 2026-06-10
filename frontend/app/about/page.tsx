@@ -14,7 +14,7 @@ const CHANGELOG = [
 
 export default function AboutPage() {
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-transparent">
       <AppSidebar mode="home" activeItem="about" />
 
       <main className="flex-1 overflow-y-auto">

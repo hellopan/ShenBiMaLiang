@@ -213,7 +213,7 @@ export default function NovelDetailPage({ params }: { params: Promise<{ id: stri
 
   return (
     <TooltipProvider>
-      <div className="flex h-screen overflow-hidden bg-background">
+      <div className="flex h-screen overflow-hidden bg-transparent">
         <AppSidebar
           mode="novel"
           activeItem={activeSection}

@@ -49,7 +49,7 @@ export default function HomePage() {
   }, [novels, query, filter])
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-transparent">
       <AppSidebar mode="home" activeItem="bookshelf" />
 
       {/* ── Right content area ───────────────────────────────────────────── */}
@@ -77,16 +77,16 @@ export default function HomePage() {
               />
             </div>
             {/* Filter tabs */}
-            <div className="flex items-center gap-0.5 rounded-lg bg-muted p-[3px]">
+            <div className="flex items-center gap-0.5 rounded-lg p-[3px]" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)' }}>
               {(["全部", "最近更新"] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
                   className={cn(
-                    "rounded-md px-3 py-1 text-xs font-medium transition-colors",
+                    "rounded-md px-3 py-1 text-xs font-medium transition-all",
                     filter === f
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
+                      ? "bg-indigo-500/30 text-white shadow-sm"
+                      : "text-white/50 hover:text-white",
                   )}
                 >
                   {f}
@@ -139,7 +139,7 @@ function NovelCard({ novel, onDelete }: { novel: Novel; onDelete: (id: string) =
 
   return (
     <div
-      className="group shrink-0 overflow-hidden rounded-xl border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/10"
+      className="group shrink-0 overflow-hidden rounded-xl border border-white/12 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/30"
       style={{ width: 360, height: 500 }}
     >
       {/* Cover — fixed 380px tall */}
@@ -175,15 +175,23 @@ function NovelCard({ novel, onDelete }: { novel: Novel; onDelete: (id: string) =
       </div>
 
       {/* Info — fixed 120px tall */}
-      <div className="flex flex-col justify-between p-4" style={{ height: 120 }}>
-        <p className="truncate text-sm font-semibold leading-snug">{novel.title}</p>
+      <div
+        className="flex flex-col justify-between p-4"
+        style={{
+          height: 120,
+          background: 'rgba(15, 23, 41, 0.60)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+        }}
+      >
+        <p className="truncate text-sm font-semibold leading-snug text-white">{novel.title}</p>
         <div className="flex items-center justify-between gap-2">
-          <Badge variant="secondary" className="px-1.5 py-0 text-[11px]">
+          <Badge variant="secondary" className="px-1.5 py-0 text-[11px] border-white/20 bg-white/10 text-white/80">
             {novel.genre}
           </Badge>
-          <span className="text-[11px] text-muted-foreground">{words.toLocaleString()} 字</span>
+          <span className="text-[11px] text-white/50">{words.toLocaleString()} 字</span>
         </div>
-        <p className="text-[11px] text-muted-foreground">{relativeTime(novel.updatedAt)}</p>
+        <p className="text-[11px] text-white/40">{relativeTime(novel.updatedAt)}</p>
       </div>
     </div>
   )

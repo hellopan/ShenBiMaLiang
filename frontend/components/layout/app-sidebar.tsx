@@ -86,13 +86,21 @@ export function AppSidebar({
   }, [])
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-sidebar overflow-hidden">
+    <aside
+      className="flex w-60 shrink-0 flex-col overflow-hidden"
+      style={{
+        background: "rgba(255, 255, 255, 0.05)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        borderRight: "1px solid rgba(255, 255, 255, 0.10)",
+      }}
+    >
       {/* ── Logo ──────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2.5 px-4 pt-6 pb-4">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+        <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-lg shadow-indigo-500/30">
           <Feather className="size-4.5" />
         </span>
-        <span className="text-base font-semibold tracking-tight">神笔马良</span>
+        <span className="text-base font-semibold tracking-tight text-white">神笔马良</span>
       </div>
 
       <Separator />
@@ -131,10 +139,10 @@ function HomeSidebar({
               key={key}
               onClick={() => router.push(href)}
               className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm transition-colors",
+                "flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm transition-all duration-200",
                 isActive
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+                  ? "bg-indigo-500/20 text-indigo-300 font-medium"
+                  : "text-white/60 hover:bg-white/8 hover:text-white",
               )}
             >
               <Icon className="size-4 shrink-0" />
@@ -172,15 +180,15 @@ function NovelSidebar({
               key={key}
               onClick={() => onNavigate?.(key)}
               className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm transition-colors",
+                "flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm",
                 isActive
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+                  ? "bg-indigo-500/20 text-indigo-300 font-medium"
+                  : "text-white/60 hover:bg-white/8 hover:text-white",
               )}
               style={{
                 opacity: mounted ? 1 : 0,
                 transform: mounted ? "translateY(0)" : "translateY(-16px)",
-                transition: `opacity 280ms ease-out ${delay}ms, transform 280ms ease-out ${delay}ms`,
+                transition: `opacity 280ms ease-out ${delay}ms, transform 280ms ease-out ${delay}ms, background-color 200ms, color 200ms`,
               }}
             >
               <Icon className="size-4 shrink-0" />
@@ -201,15 +209,15 @@ function NovelSidebar({
               key={key}
               onClick={() => onNavigate?.(key)}
               className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm transition-colors",
+                "flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm",
                 isActive
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+                  ? "bg-indigo-500/20 text-indigo-300 font-medium"
+                  : "text-white/60 hover:bg-white/8 hover:text-white",
               )}
               style={{
                 opacity: mounted ? 1 : 0,
                 transform: mounted ? "translateY(0)" : "translateY(-16px)",
-                transition: `opacity 280ms ease-out ${delay}ms, transform 280ms ease-out ${delay}ms`,
+                transition: `opacity 280ms ease-out ${delay}ms, transform 280ms ease-out ${delay}ms, background-color 200ms, color 200ms`,
               }}
             >
               <Icon className="size-4 shrink-0" />
@@ -233,7 +241,7 @@ function NovelSidebar({
             <button
               key={key}
               onClick={() => router.push(href)}
-              className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+              className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-white/50 transition-all duration-200 hover:bg-white/8 hover:text-white"
             >
               <Icon className="size-4 shrink-0" />
               {label}

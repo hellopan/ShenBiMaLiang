@@ -8,7 +8,7 @@ export function PageHeader({ title }: { title: string }) {
   const router = useRouter()
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-white/10 backdrop-blur-xl" style={{ background: 'rgba(15, 23, 41, 0.70)' }}>
       <div className="mx-auto flex h-16 max-w-4xl items-center gap-4 px-6">
         <AppLogo />
         <span className="text-border">/</span>

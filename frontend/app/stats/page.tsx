@@ -1,22 +1,20 @@
-"use client"
+'use client'
 
-import { BarChart2, Zap } from "lucide-react"
-import { AppSidebar } from "@/components/layout/app-sidebar"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+import { AppSidebar } from '@/components/layout/app-sidebar'
+import { BarChart2, Zap } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 
 export default function StatsPage() {
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen">
       <AppSidebar mode="home" activeItem="stats" />
-
-      <main className="flex-1 overflow-y-auto">
-        <div className="px-8 pt-8 pb-6">
+      <main className="flex-1 overflow-y-auto px-8 py-8">
+        <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight">统计分析</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">写作数据与 AI 用量分析</p>
         </div>
-
-        <div className="flex flex-col gap-4 px-8 pb-12">
+        <div className="flex flex-col gap-4">
           <Card>
             <CardContent className="p-0">
               <div className="flex flex-col items-center justify-center min-h-[320px] gap-4">
@@ -31,7 +29,6 @@ export default function StatsPage() {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-0">
               <div className="flex flex-col items-center justify-center min-h-[320px] gap-4">
