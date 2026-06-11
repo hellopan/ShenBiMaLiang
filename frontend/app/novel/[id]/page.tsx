@@ -333,8 +333,16 @@ function SectionOverview({
               开始创作
             </Button>
             <Button
-              variant="outline"
-              className="h-12 justify-center rounded-xl px-8 text-base font-semibold"
+              variant="ghost"
+              className={cn(
+                "h-12 justify-center rounded-xl border-0 px-8 text-base font-semibold text-white",
+                "!bg-[linear-gradient(135deg,#8b5cf6_0%,#06b6d4_100%)]",
+                "shadow-[0_0_20px_rgba(139,92,246,0.4)]",
+                "transition-all duration-200",
+                "hover:!bg-[linear-gradient(135deg,#9333ea_0%,#0891b2_100%)]",
+                "hover:shadow-[0_0_30px_rgba(139,92,246,0.6)]",
+                "hover:!text-white",
+              )}
               onClick={() => onNavigate("outline")}
             >
               <Sparkles className="size-5" />

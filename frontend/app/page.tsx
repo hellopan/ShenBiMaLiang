@@ -164,11 +164,10 @@ function NovelCard({ novel, onDelete }: { novel: Novel; onDelete: (id: string) =
             打开
           </Button>
           <Button
-            variant="outline"
-            className="h-11 gap-2 rounded-xl border-white/30 bg-white/10 px-6 text-base font-medium text-white shadow-lg backdrop-blur-sm hover:bg-white/20 hover:text-white"
+            className="group h-11 gap-2 rounded-xl border-0 bg-red-500/80 px-6 text-base font-medium text-white shadow-lg backdrop-blur-[10px] transition-all hover:bg-red-600 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)]"
             onClick={() => onDelete(novel.id)}
           >
-            <Trash2 className="size-5" />
+            <Trash2 className="size-5 text-red-200 transition-colors group-hover:text-white" />
             删除
           </Button>
         </div>
