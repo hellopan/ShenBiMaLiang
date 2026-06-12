@@ -40,7 +40,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { PromptPreviewSheet } from "@/components/prompts/prompt-preview-sheet"
-import { cn } from "@/lib/utils"
+import { cn, sortPromptEntries } from "@/lib/utils"
 import { uid, useStore } from "@/lib/store"
 import {
   type Act,
@@ -116,12 +116,24 @@ export function AiPromptsPanel({
   const customRules: PromptRule[] = actConfig?.customRules ?? []
   const inheritedEntries = getPromptEntriesForNovel(novelId)
 
+  // Apply promptOrder if set (custom/AI-recommended), otherwise use canonical group order
+  const sortedInheritedEntries = useMemo(() => {
+    const promptOrder = actConfig?.promptOrder
+    if (promptOrder && promptOrder.length > 0) {
+      const map = new Map(inheritedEntries.map((e) => [e.id, e]))
+      const ordered = promptOrder.map((id) => map.get(id)).filter(Boolean) as PromptEntry[]
+      const rest = inheritedEntries.filter((e) => !promptOrder.includes(e.id))
+      return [...ordered, ...rest]
+    }
+    return sortPromptEntries(inheritedEntries)
+  }, [inheritedEntries, actConfig?.promptOrder])
+
   const activeEntryIds = useMemo(() => {
     if (!actConfig) return []
-    return inheritedEntries
+    return sortedInheritedEntries
       .filter((e) => resolvePromptActive(e, actConfig.promptOverrides))
       .map((e) => e.id)
-  }, [inheritedEntries, actConfig])
+  }, [sortedInheritedEntries, actConfig])
 
   function patchConfig(patch: Partial<ActAIConfig>) {
     if (!activeActId) return
@@ -206,8 +218,10 @@ export function AiPromptsPanel({
 
   const enabledCount =
     systemRules.filter((r) => getRuleState(r.id)).length +
-    inheritedEntries.filter((e) => getPromptActive(e)).length +
+    sortedInheritedEntries.filter((e) => getPromptActive(e)).length +
     customRules.filter((r) => r.enabled).length
+
+  const hasCustomOrder = !!(actConfig?.promptOrder && actConfig.promptOrder.length > 0)
 
   const contextMax = actConfig?.contextUnlocked ? 2_000_000 : 1_000_000
 
@@ -254,8 +268,13 @@ export function AiPromptsPanel({
                   />
                   规则词条
                   <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] tabular-nums">
-                    {enabledCount}/{systemRules.length + inheritedEntries.length + customRules.length}
+                    {enabledCount}/{systemRules.length + sortedInheritedEntries.length + customRules.length}
                   </span>
+                  {hasCustomOrder && (
+                    <Badge variant="outline" className="ml-1 text-[9px] bg-indigo-500/10 text-indigo-400">
+                      自定义排序
+                    </Badge>
+                  )}
                 </CollapsibleTrigger>
 
                 <CollapsibleContent className="pt-1">
@@ -302,12 +321,12 @@ export function AiPromptsPanel({
                     </div>
 
                     {/* 继承词条 */}
-                    {inheritedEntries.length > 0 && (
+                    {sortedInheritedEntries.length > 0 && (
                       <div className="flex flex-col gap-1">
                         <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                           继承词条
                         </p>
-                        {inheritedEntries.map((entry) => {
+                        {sortedInheritedEntries.map((entry) => {
                           const enabled = getPromptActive(entry)
                           return (
                             <div
@@ -612,6 +631,12 @@ export function AiPromptsPanel({
         actId={activeActId ?? undefined}
         mode="expand"
         activeEntryIds={activeEntryIds}
+        initialPromptOrder={actConfig?.promptOrder}
+        onApplyOrder={(order) => {
+          if (activeActId) {
+            onActConfigChange(activeActId, { promptOrder: order })
+          }
+        }}
       />
     </TooltipProvider>
   )

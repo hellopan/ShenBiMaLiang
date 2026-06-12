@@ -18,7 +18,7 @@ import {
   PROMPT_GROUP_BADGE_CLASS,
   PROMPT_SCOPE_BADGE_CLASS,
 } from "@/lib/types"
-import { cn } from "@/lib/utils"
+import { cn, sortPromptEntries } from "@/lib/utils"
 
 const GROUP_MAP: Record<string, PromptGroup | null> = {
   全部: null,
@@ -84,7 +84,7 @@ function PromptEntriesPanel(
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     const group = GROUP_MAP[groupFilter]
-    return baseEntries.filter((e) => {
+    const result = baseEntries.filter((e) => {
       const matchScope =
         !showScopeFilter ||
         scopeFilter === "全部" ||
@@ -97,7 +97,9 @@ function PromptEntriesPanel(
         e.content.toLowerCase().includes(q)
       return matchScope && matchGroup && matchQuery
     })
-  }, [baseEntries, query, scopeFilter, groupFilter, showScopeFilter])
+    // In override mode, use canonical group order for stable display
+    return overrideMode ? sortPromptEntries(result) : result
+  }, [baseEntries, query, scopeFilter, groupFilter, showScopeFilter, overrideMode])
 
   function openAdd() {
     setEditing(null)

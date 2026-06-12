@@ -130,6 +130,8 @@ export interface ActAIConfig {
   ruleStates: Record<string, boolean>
   promptOverrides: ActPromptOverride[]
   customRules: PromptRule[]
+  /** user-applied prompt entry order (ids); overrides sortPromptEntries() when set */
+  promptOrder?: string[]
 }
 
 export function makeDefaultActConfig(actId: string, model = ""): ActAIConfig {

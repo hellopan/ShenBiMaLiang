@@ -1,5 +1,6 @@
 import type { Chapter, Entry, Novel, PromptEntry } from "@/lib/types"
 import { PROMPT_GROUP_LABELS } from "@/lib/types"
+import { sortPromptEntries } from "@/lib/utils"
 
 export type PromptPreviewMode = "outline" | "expand" | "test"
 
@@ -76,7 +77,7 @@ export function buildPromptPreviewBlocks(options: {
       ? [testEntry]
       : entriesPreFiltered
         ? entries
-        : entries.filter((e) => e.active)
+        : sortPromptEntries(entries.filter((e) => e.active))
 
   if (activeEntries.length > 0) {
     activeEntries.forEach((entry) => {
