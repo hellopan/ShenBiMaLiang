@@ -2,9 +2,11 @@
 
 import { forwardRef, useImperativeHandle, useMemo, useState } from "react"
 import { Plus, Search } from "lucide-react"
+import { toast } from "sonner"
 import { PromptEntryDialog } from "@/components/prompts/prompt-entry-dialog"
 import { PromptEntryCard } from "@/components/prompts/prompt-entry-card"
 import { PromptPreviewSheet } from "@/components/prompts/prompt-preview-sheet"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
@@ -75,6 +77,7 @@ function PromptEntriesPanel(
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<PromptEntry | null>(null)
   const [previewEntryId, setPreviewEntryId] = useState<string | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
   const baseEntries = useMemo(() => {
     if (novelId) return getPromptEntriesForNovel(novelId)
@@ -117,9 +120,28 @@ function PromptEntriesPanel(
     if (entry.id && promptEntries.some((e) => e.id === entry.id)) {
       const { id, ...rest } = entry as PromptEntry
       updatePromptEntry(id, rest)
+      toast.success(`词条「${entry.name}」已更新`)
     } else {
       addPromptEntry(entry)
+      toast.success(`词条「${entry.name}」已创建`)
     }
+  }
+
+  const pendingEntry = promptEntries.find((e) => e.id === pendingDeleteId)
+
+  function confirmDelete() {
+    if (!pendingDeleteId) return
+    const entry = pendingEntry
+    if (entry?.isSystem) {
+      toast.error("系统词条不可删除")
+      setPendingDeleteId(null)
+      return
+    }
+    // close preview sheet if the deleted entry was being previewed
+    if (previewEntryId === pendingDeleteId) setPreviewEntryId(null)
+    deletePromptEntry(pendingDeleteId)
+    toast.success(`词条「${entry?.name ?? ""}」已删除`)
+    setPendingDeleteId(null)
   }
 
   function getNovelTitle(id?: string) {
@@ -245,7 +267,7 @@ function PromptEntriesPanel(
                 entry={entry}
                 novelTitle={getNovelTitle(entry.novelId)}
                 onEdit={() => openEdit(entry)}
-                onDelete={() => deletePromptEntry(entry.id)}
+                onDelete={() => setPendingDeleteId(entry.id)}
                 onToggleActive={(active) => updatePromptEntry(entry.id, { active })}
                 onPreview={() => setPreviewEntryId(entry.id)}
                 readOnly={entry.isSystem}
@@ -273,6 +295,23 @@ function PromptEntriesPanel(
         novelId={novelId}
         mode="test"
         testEntryId={previewEntryId ?? undefined}
+      />
+
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        onOpenChange={(o) => !o && setPendingDeleteId(null)}
+        title={pendingEntry?.isSystem ? "系统词条" : "删除词条"}
+        description={
+          pendingEntry?.isSystem
+            ? `「${pendingEntry.name}」是系统词条，不可删除。`
+            : pendingEntry
+              ? `确定要删除词条「${pendingEntry.name}」吗？此操作不可撤销。`
+              : undefined
+        }
+        confirmLabel={pendingEntry?.isSystem ? "知道了" : "删除"}
+        cancelLabel={pendingEntry?.isSystem ? undefined : "取消"}
+        variant={pendingEntry?.isSystem ? "default" : "destructive"}
+        onConfirm={confirmDelete}
       />
     </div>
   )

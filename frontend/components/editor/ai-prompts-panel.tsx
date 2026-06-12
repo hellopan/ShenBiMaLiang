@@ -68,6 +68,7 @@ type Props = {
   activeActId: string | null
   actConfigs: Record<string, ActAIConfig>
   models: ModelConfig[]
+  isLoading?: boolean
   onActConfigChange: (actId: string, patch: Partial<ActAIConfig>) => void
   onUpdateChapter: (updater: (c: Chapter) => Chapter) => void
 }
@@ -93,6 +94,7 @@ export function AiPromptsPanel({
   activeActId,
   actConfigs,
   models,
+  isLoading = false,
   onActConfigChange,
   onUpdateChapter,
 }: Props) {
@@ -224,6 +226,27 @@ export function AiPromptsPanel({
   const hasCustomOrder = !!(actConfig?.promptOrder && actConfig.promptOrder.length > 0)
 
   const contextMax = actConfig?.contextUnlocked ? 2_000_000 : 1_000_000
+
+  if (isLoading) {
+    return (
+      <TooltipProvider>
+        <aside className="flex h-full w-70 shrink-0 flex-col bg-sidebar" style={{ borderLeft: "4px solid var(--border)" }}>
+          <div className="border-b border-border px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Settings2 className="size-4 text-primary" />
+              <h2 className="text-sm font-semibold">AI 配置</h2>
+            </div>
+            <div className="mt-1 h-3 w-32 animate-pulse rounded bg-muted/60" />
+          </div>
+          <div className="flex flex-col gap-3 p-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-8 animate-pulse rounded-lg bg-muted/40" style={{ animationDelay: `${i * 60}ms` }} />
+            ))}
+          </div>
+        </aside>
+      </TooltipProvider>
+    )
+  }
 
   return (
     <TooltipProvider>

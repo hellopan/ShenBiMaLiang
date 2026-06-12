@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useTheme } from 'next-themes'
 import { Plus, Pencil, Trash2, Cpu, Settings2, Sparkles, Sun, Moon } from 'lucide-react'
+import { toast } from 'sonner'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { ModelDialog } from '@/components/model-dialog'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
@@ -23,9 +25,10 @@ const providerVariant: Record<Provider, 'default' | 'secondary' | 'outline'> = {
 }
 
 export default function SettingsPage() {
-  const { models, setModels } = useStore()
+  const { models, setModels, addModel, updateModel, deleteModel } = useStore()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<ModelConfig | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
   function openAdd() {
     setEditing(null)
@@ -38,18 +41,27 @@ export default function SettingsPage() {
   }
 
   function save(newModels: ModelConfig[]) {
-    setModels((prev) => {
-      const without = editing ? prev.filter((m) => m.id !== editing.id) : prev
-      return [...without, ...newModels]
-    })
+    if (editing) {
+      // Update existing — newModels[0] has the updated values
+      updateModel(editing.id, newModels[0] ?? {})
+      toast.success(`模型「${newModels[0]?.label ?? editing.label}」已更新`)
+    } else {
+      newModels.forEach((m) => addModel(m))
+      toast.success(`已添加 ${newModels.length} 个模型`)
+    }
   }
 
-  function remove(id: string) {
-    setModels((prev) => prev.filter((m) => m.id !== id))
+  const pendingModel = models.find((m) => m.id === pendingDeleteId)
+
+  function confirmDelete() {
+    if (!pendingDeleteId) return
+    deleteModel(pendingDeleteId)
+    toast.success(`模型「${pendingModel?.label ?? ""}」已删除`)
+    setPendingDeleteId(null)
   }
 
   function toggle(id: string, active: boolean) {
-    setModels((prev) => prev.map((m) => (m.id === id ? { ...m, active } : m)))
+    updateModel(id, { active })
   }
 
   return (
@@ -125,7 +137,7 @@ export default function SettingsPage() {
                           <Button
                             size="icon-sm"
                             variant="ghost"
-                            onClick={() => remove(m.id)}
+                            onClick={() => setPendingDeleteId(m.id)}
                             aria-label="删除"
                             className="text-muted-foreground hover:text-destructive"
                           >
@@ -167,6 +179,19 @@ export default function SettingsPage() {
         onOpenChange={setDialogOpen}
         initial={editing}
         onSave={save}
+      />
+
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        onOpenChange={(o) => !o && setPendingDeleteId(null)}
+        title="删除模型"
+        description={
+          pendingModel
+            ? `确定要删除模型「${pendingModel.label}」吗？此操作不可撤销。`
+            : undefined
+        }
+        confirmLabel="删除"
+        onConfirm={confirmDelete}
       />
     </div>
   )

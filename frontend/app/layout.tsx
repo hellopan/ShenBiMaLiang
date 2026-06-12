@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { Toaster } from 'sonner'
 import { StoreProvider } from '@/lib/store'
 import { ThemeProvider } from '@/components/theme-provider'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -97,6 +98,11 @@ export default function RootLayout({
               <TooltipProvider>{children}</TooltipProvider>
             </StoreProvider>
           </div>
+          <Toaster
+            position="bottom-right"
+            richColors
+            toastOptions={{ duration: 3000 }}
+          />
         </ThemeProvider>
       </body>
     </html>

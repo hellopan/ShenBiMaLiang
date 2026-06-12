@@ -25,6 +25,7 @@ import { buildPromptPreviewBlocks, type PromptPreviewMode } from "@/lib/prompt-p
 import { cn, sortPromptEntries } from "@/lib/utils"
 import type { PromptEntry } from "@/lib/types"
 import { PROMPT_GROUP_BADGE_CLASS, PROMPT_GROUP_LABELS } from "@/lib/types"
+import { recommendOrder, type AiSortResult } from "@/lib/api/ai"
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -44,12 +45,6 @@ export type PromptPreviewSheetProps = {
 }
 
 type SortMode = "default" | "custom" | "ai"
-
-type AiSortResult = {
-  order: string[]
-  reasons: Record<string, string>
-  summary: string
-}
 
 type AiSortState = {
   loading: boolean
@@ -272,74 +267,9 @@ export function PromptPreviewSheet({
     setAiState({ loading: true, result: null, error: null })
     setSortMode("ai")
 
-    const modeLabel = MODE_LABELS[mode]
-    const entryList = sortPromptEntries(filteredEntries)
-      .map((e, i) => `${i + 1}. [${e.group}] ${e.name}：${e.content.slice(0, 50)}`)
-      .join("\n")
-
-    const prompt = `你是一个提示词工程专家。以下是用于「${modeLabel}」任务的提示词词条列表。
-请根据大语言模型的注意力机制（首因效应、近因效应、中间遗忘），为这些词条推荐最优排列顺序。
-
-任务类型：${modeLabel}
-当前词条列表：
-${entryList}
-
-请返回 JSON 格式：
-{
-  "order": ["词条id1", "词条id2"],
-  "reasons": {
-    "词条id1": "放在首位的理由（15字以内）"
-  },
-  "summary": "整体排序策略说明（50字以内）"
-}
-只返回 JSON，不要其他内容。`
-
     try {
-      let response: Response
-      if (model.provider === "Anthropic") {
-        const base = model.baseUrl?.replace(/\/+$/, "") ?? "https://api.anthropic.com"
-        response = await fetch(`${base}/v1/messages`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": model.apiKey,
-            "anthropic-version": "2023-06-01",
-          },
-          body: JSON.stringify({
-            model: model.modelName,
-            max_tokens: 1000,
-            messages: [{ role: "user", content: prompt }],
-          }),
-        })
-        if (!response.ok) throw new Error(`API error ${response.status}`)
-        const data = await response.json()
-        const raw = data.content?.[0]?.text ?? ""
-        const jsonMatch = raw.match(/\{[\s\S]*\}/)
-        if (!jsonMatch) throw new Error("无法解析返回的 JSON")
-        const parsed = JSON.parse(jsonMatch[0]) as AiSortResult
-        setAiState({ loading: false, result: parsed, error: null })
-      } else {
-        const base = model.baseUrl?.replace(/\/+$/, "") ?? "https://api.openai.com/v1"
-        response = await fetch(`${base}/chat/completions`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${model.apiKey}`,
-          },
-          body: JSON.stringify({
-            model: model.modelName,
-            max_tokens: 1000,
-            messages: [{ role: "user", content: prompt }],
-          }),
-        })
-        if (!response.ok) throw new Error(`API error ${response.status}`)
-        const data = await response.json()
-        const raw = data.choices?.[0]?.message?.content ?? ""
-        const jsonMatch = raw.match(/\{[\s\S]*\}/)
-        if (!jsonMatch) throw new Error("无法解析返回的 JSON")
-        const parsed = JSON.parse(jsonMatch[0]) as AiSortResult
-        setAiState({ loading: false, result: parsed, error: null })
-      }
+      const result = await recommendOrder({ entries: filteredEntries, mode, model })
+      setAiState({ loading: false, result, error: null })
     } catch (err) {
       setAiState({
         loading: false,
@@ -438,7 +368,7 @@ ${entryList}
                     <p className="mb-2 text-xs font-medium">使用哪个模型来推荐排序？</p>
                     <Select
                       value={selectedModelId || activeModels[0]?.id || ""}
-                      onValueChange={setSelectedModelId}
+                      onValueChange={(v) => v && setSelectedModelId(v)}
                     >
                       <SelectTrigger size="sm" className="w-full text-xs">
                         <SelectValue>
@@ -578,6 +508,16 @@ ${entryList}
                 >
                   恢复默认
                 </Button>
+              </div>
+            )}
+
+            {/* ── Empty entries notice (non-test mode only) ───────────── */}
+            {!aiState.loading && mode !== "test" && filteredEntries.length === 0 && (
+              <div className="mx-1 rounded-lg border border-dashed border-border/60 bg-muted/20 p-4 text-center">
+                <p className="text-xs font-medium text-muted-foreground">当前没有启用的词条</p>
+                <p className="mt-1 text-[11px] text-muted-foreground/70">
+                  提示词将仅包含系统提示与背景信息，不含任何自定义规则
+                </p>
               </div>
             )}
 

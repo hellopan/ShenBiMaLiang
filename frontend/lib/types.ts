@@ -57,6 +57,12 @@ export const PROMPT_SCOPE_BADGE_CLASS: Record<PromptScope, string> = {
   novel: "bg-violet-500/15 text-violet-400 border-violet-500/20",
 }
 
+/**
+ * @api-resource  GET /prompt-entries  独立实体，支持 scope=global|novel 筛选
+ *
+ * 每条规则词条独立存储，可被多部小说共享（scope=global）或归属某部小说（scope=novel）。
+ * 后端设计：独立表，通过 novelId FK 关联 Novel。
+ */
 export interface PromptEntry {
   id: string
   name: string
@@ -89,6 +95,13 @@ export function resolvePromptActive(
 }
 
 // ── Novel-level AI config ────────────────────────────────────────────────
+
+/**
+ * @api-config  存于 Novel 行的 outlineAIConfig / contentAIConfig JSON 列，不独立端点
+ *
+ * 小说级别的 AI 生成参数快照，随 Novel 整体序列化。
+ * 后端设计：作为 Novel 行的两个 jsonb 列（outline_ai_config / content_ai_config）。
+ */
 export interface NovelAIConfig {
   model: string
   temperature: number
@@ -117,6 +130,14 @@ export const DEFAULT_CONTENT_AI_CONFIG: NovelAIConfig = {
 }
 
 // ── Per-act AI configuration ────────────────────────────────────────────
+
+/**
+ * @api-config  存于 Act 行的 ai_config JSON 列，不独立端点
+ *
+ * 幕级别的 AI 配置与规则覆盖，随 Act 整体序列化。
+ * 当前仅驻留在编辑器本地 state；后端设计时建议作为 Act 行的 jsonb 列，而非独立表。
+ * promptOrder 如需多端同步，可提升为独立行但暂无此需求。
+ */
 export interface ActAIConfig {
   actId: string
   model: string
@@ -175,6 +196,12 @@ export type PromptRule = {
   enabled: boolean
 }
 
+/**
+ * @api-resource  嵌套于 GET /novels/:id/chapters/:id  独立实体
+ *
+ * Act 是章节的最小写作单元。后端设计：独立表，通过 chapterId FK 关联 Chapter。
+ * ActAIConfig 作为 ai_config jsonb 列存于同一行。
+ */
 export type Act = {
   id: string
   outline: string
@@ -182,6 +209,12 @@ export type Act = {
   model?: string
 }
 
+/**
+ * @api-resource  GET /novels/:id/chapters  独立实体，不内嵌在 Novel 响应中（分页加载）
+ *
+ * 后端设计：独立表，通过 novelId FK 关联 Novel。
+ * genParams / customRules / systemRuleStates 作为 jsonb 列存于同一行。
+ */
 export type Chapter = {
   id: string
   title: string
@@ -193,6 +226,12 @@ export type Chapter = {
   systemRuleStates?: Record<string, boolean>
 }
 
+/**
+ * @api-resource  GET /novels/:id  独立实体，不内嵌 chapters（chapters 单独分页请求）
+ *
+ * 后端设计：独立表。outlineAIConfig / contentAIConfig 作为两个 jsonb 列。
+ * chapters 字段仅在前端内存中使用，API 响应不包含此字段。
+ */
 export type Novel = {
   id: string
   title: string
@@ -209,6 +248,11 @@ export type Novel = {
 
 export type Provider = "OpenAI" | "Anthropic" | "DeepSeek" | "Custom"
 
+/**
+ * @api-resource  GET /models  独立实体
+ *
+ * 用户配置的 LLM 模型接入信息。后端设计：独立表，apiKey 加密存储。
+ */
 export type ModelConfig = {
   id: string
   label: string
@@ -222,6 +266,12 @@ export type ModelConfig = {
 
 export type EntryCategory = "角色" | "地名" | "物品" | "功法"
 
+/**
+ * @api-resource  GET /novels/:id/entries  独立实体（世界观词条）
+ *
+ * 每条世界观词条归属某部小说（novelId），支持关键词触发插入上下文。
+ * 后端设计：独立表，通过 novelId FK 关联 Novel。keywords 可存为 text[] 或 json。
+ */
 export type Entry = {
   id: string
   title: string

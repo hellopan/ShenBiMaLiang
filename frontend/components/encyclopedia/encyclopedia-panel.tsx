@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react"
 import { Plus, Search, Pencil, Trash2, BookText } from "lucide-react"
+import { toast } from "sonner"
 import { EntryDialog } from "@/components/entry-dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -31,13 +33,13 @@ type Props = {
 }
 
 export function EncyclopediaPanel({ novelId }: Props) {
-  const { entries, setEntries } = useStore()
+  const { entries, addEntry, updateEntry, deleteEntry } = useStore()
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<Filter>("全部")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Entry | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
-  // Filter entries by novelId if provided, then by search / category
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return entries.filter((e) => {
@@ -63,18 +65,24 @@ export function EncyclopediaPanel({ novelId }: Props) {
   }
 
   function save(entry: Entry) {
-    // Attach novelId when creating a new entry from within a novel context
     const entryWithNovel: Entry = novelId && !entry.novelId ? { ...entry, novelId } : entry
-    setEntries((prev) => {
-      const exists = prev.some((e) => e.id === entryWithNovel.id)
-      return exists
-        ? prev.map((e) => (e.id === entryWithNovel.id ? entryWithNovel : e))
-        : [entryWithNovel, ...prev]
-    })
+    const exists = entries.some((e) => e.id === entryWithNovel.id)
+    if (exists) {
+      updateEntry(entryWithNovel.id, entryWithNovel)
+      toast.success(`词条「${entryWithNovel.title}」已更新`)
+    } else {
+      addEntry(entryWithNovel)
+      toast.success(`词条「${entryWithNovel.title}」已创建`)
+    }
   }
 
-  function remove(id: string) {
-    setEntries((prev) => prev.filter((e) => e.id !== id))
+  const pendingEntry = entries.find((e) => e.id === pendingDeleteId)
+
+  function confirmDelete() {
+    if (!pendingDeleteId) return
+    deleteEntry(pendingDeleteId)
+    toast.success(`词条「${pendingEntry?.title ?? ""}」已删除`)
+    setPendingDeleteId(null)
   }
 
   return (
@@ -126,7 +134,7 @@ export function EncyclopediaPanel({ novelId }: Props) {
               key={entry.id}
               entry={entry}
               onEdit={() => openEdit(entry)}
-              onDelete={() => remove(entry.id)}
+              onDelete={() => setPendingDeleteId(entry.id)}
             />
           ))}
         </div>
@@ -137,6 +145,19 @@ export function EncyclopediaPanel({ novelId }: Props) {
         onOpenChange={setDialogOpen}
         initial={editing}
         onSave={save}
+      />
+
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        onOpenChange={(o) => !o && setPendingDeleteId(null)}
+        title="删除词条"
+        description={
+          pendingEntry
+            ? `确定要删除词条「${pendingEntry.title}」吗？此操作不可撤销。`
+            : undefined
+        }
+        confirmLabel="删除"
+        onConfirm={confirmDelete}
       />
     </div>
   )

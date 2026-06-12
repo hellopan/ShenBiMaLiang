@@ -17,6 +17,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
   const [activeChapterId, setActiveChapterId] = useState(novel?.chapters[0]?.id ?? "")
   const [activeActId, setActiveActId] = useState<string | null>(null)
   const [actConfigs, setActConfigs] = useState<Record<string, ActAIConfig>>({})
+  const [configLoading, setConfigLoading] = useState(false)
 
   const activeChapter = useMemo(
     () => novel?.chapters.find((c) => c.id === activeChapterId) ?? novel?.chapters[0],
@@ -26,22 +27,28 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
   const activeModels = useMemo(() => models.filter((m) => m.active), [models])
   const defaultModelId = activeModels[0]?.id ?? ""
 
-  // Initialize / sync act configs whenever the active chapter changes
+  // Initialize / sync act configs whenever the active chapter changes.
+  // A brief 100ms loading state prevents the AI panel from flashing stale data.
   useEffect(() => {
     if (!activeChapter) return
-    setActConfigs((prev) => {
-      const next = { ...prev }
-      activeChapter.acts.forEach((act) => {
-        if (!next[act.id]) {
-          next[act.id] = makeDefaultActConfig(act.id, defaultModelId)
-        }
+    setConfigLoading(true)
+    const t = setTimeout(() => {
+      setActConfigs((prev) => {
+        const next = { ...prev }
+        activeChapter.acts.forEach((act) => {
+          if (!next[act.id]) {
+            next[act.id] = makeDefaultActConfig(act.id, defaultModelId)
+          }
+        })
+        return next
       })
-      return next
-    })
-    setActiveActId((prev) => {
-      if (prev && activeChapter.acts.some((a) => a.id === prev)) return prev
-      return activeChapter.acts[0]?.id ?? null
-    })
+      setActiveActId((prev) => {
+        if (prev && activeChapter.acts.some((a) => a.id === prev)) return prev
+        return activeChapter.acts[0]?.id ?? null
+      })
+      setConfigLoading(false)
+    }, 100)
+    return () => clearTimeout(t)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChapter?.id])
 
@@ -138,6 +145,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
       <main className="flex-1 overflow-y-auto">
         <ChapterEditor
           novelId={id}
+          novel={novel}
           chapter={activeChapter}
           activeActId={activeActId}
           onChangeTitle={(title) => patchChapter(activeChapter.id, (c) => ({ ...c, title }))}
@@ -159,6 +167,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
         activeActId={activeActId}
         actConfigs={actConfigs}
         models={activeModels}
+        isLoading={configLoading}
         onActConfigChange={handleActConfigChange}
         onUpdateChapter={(updater) => patchChapter(activeChapter.id, updater)}
       />

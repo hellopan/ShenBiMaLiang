@@ -1,22 +1,27 @@
 "use client"
 
-import { createContext, useContext, useState, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import type {
   Novel,
   ModelConfig,
   Entry,
   PromptEntry,
   ActAIConfig,
+  Chapter,
+  Act,
 } from "@/lib/types"
 import {
   DEFAULT_OUTLINE_AI_CONFIG,
   DEFAULT_CONTENT_AI_CONFIG,
   resolvePromptActive,
 } from "@/lib/types"
+import { setStoreRef } from "@/lib/api/_store-ref"
 
-function uid() {
+export function uid() {
   return Math.random().toString(36).slice(2, 10)
 }
+
+// ── Seed data ──────────────────────────────────────────────────────────────
 
 const seedNovels: Novel[] = [
   {
@@ -261,26 +266,54 @@ const seedPromptEntries: PromptEntry[] = [
   },
 ]
 
+// ── Store type ─────────────────────────────────────────────────────────────
+
 export type EffectivePromptEntry = PromptEntry & { effectiveActive: boolean }
 
-type Store = {
+/** Actions exposed by the store — used by lib/api/_store-ref.ts */
+export type StoreActions = {
   novels: Novel[]
   models: ModelConfig[]
   entries: Entry[]
   promptEntries: PromptEntry[]
+
+  // Raw setters (keep for backward compat but prefer specific actions)
   setNovels: React.Dispatch<React.SetStateAction<Novel[]>>
   setModels: React.Dispatch<React.SetStateAction<ModelConfig[]>>
   setEntries: React.Dispatch<React.SetStateAction<Entry[]>>
   setPromptEntries: React.Dispatch<React.SetStateAction<PromptEntry[]>>
+
+  // Novel
   createNovel: (data: { title: string; genre: string; synopsis: string }) => string
   deleteNovel: (id: string) => void
   updateNovel: (id: string, updater: (n: Novel) => Novel) => void
+
+  // Chapter
+  addChapter: (novelId: string, data?: Partial<Chapter> & { title?: string }) => string
+  deleteChapter: (novelId: string, chapterId: string) => void
+
+  // Act
+  addAct: (novelId: string, chapterId: string, data?: Partial<Act>) => string
+
+  // Entry (世界观词条)
+  addEntry: (data: Omit<Entry, "id">) => string
+  updateEntry: (id: string, changes: Partial<Entry>) => void
+  deleteEntry: (id: string) => void
+
+  // PromptEntry
   addPromptEntry: (entry: Omit<PromptEntry, "id" | "createdAt">) => void
   updatePromptEntry: (id: string, changes: Partial<PromptEntry>) => void
   deletePromptEntry: (id: string) => void
   getPromptEntriesForNovel: (novelId: string) => PromptEntry[]
   getPromptEntriesForAct: (novelId: string, actConfig: ActAIConfig | null) => EffectivePromptEntry[]
+
+  // Model
+  addModel: (data: Omit<ModelConfig, "id">) => string
+  updateModel: (id: string, changes: Partial<ModelConfig>) => void
+  deleteModel: (id: string) => void
 }
+
+type Store = StoreActions
 
 const StoreContext = createContext<Store | null>(null)
 
@@ -289,6 +322,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [models, setModels] = useState<ModelConfig[]>(seedModels)
   const [entries, setEntries] = useState<Entry[]>(seedEntries)
   const [promptEntries, setPromptEntries] = useState<PromptEntry[]>(seedPromptEntries)
+
+  // ── Novel ──────────────────────────────────────────────────────────────
 
   const createNovel: Store["createNovel"] = (data) => {
     const id = uid()
@@ -328,6 +363,72 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     )
   }
 
+  // ── Chapter ────────────────────────────────────────────────────────────
+
+  const addChapter: Store["addChapter"] = (novelId, data) => {
+    const id = uid()
+    updateNovel(novelId, (n) => ({
+      ...n,
+      chapters: [
+        ...n.chapters,
+        {
+          id,
+          title: data?.title ?? `第${n.chapters.length + 1}章`,
+          outline: data?.outline ?? "",
+          expanded: data?.expanded ?? true,
+          acts: data?.acts ?? [{ id: uid(), outline: "", content: "" }],
+        },
+      ],
+    }))
+    return id
+  }
+
+  const deleteChapter: Store["deleteChapter"] = (novelId, chapterId) => {
+    updateNovel(novelId, (n) => ({
+      ...n,
+      chapters: n.chapters.filter((c) => c.id !== chapterId),
+    }))
+  }
+
+  // ── Act ────────────────────────────────────────────────────────────────
+
+  const addAct: Store["addAct"] = (novelId, chapterId, data) => {
+    const id = uid()
+    updateNovel(novelId, (n) => ({
+      ...n,
+      chapters: n.chapters.map((c) =>
+        c.id === chapterId
+          ? {
+              ...c,
+              acts: [
+                ...c.acts,
+                { id, outline: data?.outline ?? "", content: data?.content ?? "" },
+              ],
+            }
+          : c,
+      ),
+    }))
+    return id
+  }
+
+  // ── Entry (世界观词条) ──────────────────────────────────────────────────
+
+  const addEntry: Store["addEntry"] = (data) => {
+    const id = uid()
+    setEntries((prev) => [...prev, { ...data, id }])
+    return id
+  }
+
+  const updateEntry: Store["updateEntry"] = (id, changes) => {
+    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...changes } : e)))
+  }
+
+  const deleteEntry: Store["deleteEntry"] = (id) => {
+    setEntries((prev) => prev.filter((e) => e.id !== id))
+  }
+
+  // ── PromptEntry ────────────────────────────────────────────────────────
+
   const addPromptEntry: Store["addPromptEntry"] = (entry) => {
     const full: PromptEntry = {
       ...entry,
@@ -357,39 +458,66 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .sort((a, b) => b.weight - a.weight)
   }
 
-  const getPromptEntriesForAct: Store["getPromptEntriesForAct"] = (
-    novelId,
-    actConfig,
-  ) => {
+  const getPromptEntriesForAct: Store["getPromptEntriesForAct"] = (novelId, actConfig) => {
     const overrides = actConfig?.promptOverrides ?? []
-    return getPromptEntriesForNovel(novelId)
-      .map((entry) => ({
-        ...entry,
-        effectiveActive: resolvePromptActive(entry, overrides),
-      }))
+    return getPromptEntriesForNovel(novelId).map((entry) => ({
+      ...entry,
+      effectiveActive: resolvePromptActive(entry, overrides),
+    }))
   }
 
+  // ── Model ──────────────────────────────────────────────────────────────
+
+  const addModel: Store["addModel"] = (data) => {
+    const id = uid()
+    setModels((prev) => [...prev, { ...data, id }])
+    return id
+  }
+
+  const updateModel: Store["updateModel"] = (id, changes) => {
+    setModels((prev) => prev.map((m) => (m.id === id ? { ...m, ...changes } : m)))
+  }
+
+  const deleteModel: Store["deleteModel"] = (id) => {
+    setModels((prev) => prev.filter((m) => m.id !== id))
+  }
+
+  // ── Register store ref for api/ layer ─────────────────────────────────
+
+  const storeValue: Store = {
+    novels,
+    models,
+    entries,
+    promptEntries,
+    setNovels,
+    setModels,
+    setEntries,
+    setPromptEntries,
+    createNovel,
+    deleteNovel,
+    updateNovel,
+    addChapter,
+    deleteChapter,
+    addAct,
+    addEntry,
+    updateEntry,
+    deleteEntry,
+    addPromptEntry,
+    updatePromptEntry,
+    deletePromptEntry,
+    getPromptEntriesForNovel,
+    getPromptEntriesForAct,
+    addModel,
+    updateModel,
+    deleteModel,
+  }
+
+  // Keep store ref in sync for api/ layer usage
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setStoreRef(storeValue) })
+
   return (
-    <StoreContext.Provider
-      value={{
-        novels,
-        models,
-        entries,
-        promptEntries,
-        setNovels,
-        setModels,
-        setEntries,
-        setPromptEntries,
-        createNovel,
-        deleteNovel,
-        updateNovel,
-        addPromptEntry,
-        updatePromptEntry,
-        deletePromptEntry,
-        getPromptEntriesForNovel,
-        getPromptEntriesForAct,
-      }}
-    >
+    <StoreContext.Provider value={storeValue}>
       {children}
     </StoreContext.Provider>
   )
@@ -400,5 +528,3 @@ export function useStore() {
   if (!ctx) throw new Error("useStore must be used within StoreProvider")
   return ctx
 }
-
-export { uid }
