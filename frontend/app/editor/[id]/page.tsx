@@ -137,17 +137,12 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
 
       <main className="flex-1 overflow-y-auto">
         <ChapterEditor
+          novelId={id}
           chapter={activeChapter}
           activeActId={activeActId}
           onChangeTitle={(title) => patchChapter(activeChapter.id, (c) => ({ ...c, title }))}
           onChangeOutline={(outline) =>
             patchChapter(activeChapter.id, (c) => ({ ...c, outline }))
-          }
-          onChangeStylePrompt={(stylePrompt) =>
-            patchChapter(activeChapter.id, (c) => ({ ...c, stylePrompt }))
-          }
-          onChangeForbidPrompt={(forbidPrompt) =>
-            patchChapter(activeChapter.id, (c) => ({ ...c, forbidPrompt }))
           }
           onChangeAct={handleChangeAct}
           onAddAct={handleAddAct}
@@ -158,6 +153,7 @@ export default function EditorPage({ params }: { params: Promise<{ id: string }>
       </main>
 
       <AiPromptsPanel
+        novelId={id}
         chapter={activeChapter}
         acts={activeChapter.acts}
         activeActId={activeActId}

@@ -1,7 +1,18 @@
 "use client"
 
 import { createContext, useContext, useState, type ReactNode } from "react"
-import type { Novel, ModelConfig, Entry } from "@/lib/types"
+import type {
+  Novel,
+  ModelConfig,
+  Entry,
+  PromptEntry,
+  ActAIConfig,
+} from "@/lib/types"
+import {
+  DEFAULT_OUTLINE_AI_CONFIG,
+  DEFAULT_CONTENT_AI_CONFIG,
+  resolvePromptActive,
+} from "@/lib/types"
 
 function uid() {
   return Math.random().toString(36).slice(2, 10)
@@ -18,10 +29,8 @@ const seedNovels: Novel[] = [
     createdAt: Date.now() - 1000 * 60 * 60 * 24 * 30,
     targetWordCount: 3000000,
     writingLanguage: "现代白话文",
-    stylePrompt: "文笔细腻，善用环境描写烘托情绪，人物心理描写深刻，战斗场面节奏明快。",
-    forbiddenPrompt: "禁止使用网络流行语，避免现代词汇，不使用低俗描写。",
-    outlineConfig: { modelId: "m1", temperature: 0.3, topP: 0.8, topK: 20, contextLength: 128000, maxReplyLength: 60000 },
-    contentConfig: { modelId: "m1", temperature: 0.7, topP: 0.9, topK: 40, contextLength: 128000, maxReplyLength: 60000 },
+    outlineAIConfig: { ...DEFAULT_OUTLINE_AI_CONFIG, model: "m1" },
+    contentAIConfig: { ...DEFAULT_CONTENT_AI_CONFIG, model: "m1" },
     chapters: [
       {
         id: "c1",
@@ -37,7 +46,7 @@ const seedNovels: Novel[] = [
           },
           {
             id: "a2",
-            outline: "古剑认主，灵脉觉醒，林墨感受到前所未有的力量。",
+            outline: "古剑认主，灵脉觉醒，林墨感受到潜藏力量。",
             content: "",
           },
         ],
@@ -65,6 +74,8 @@ const seedNovels: Novel[] = [
       "在常年笼罩浓雾的港口城市，落魄侦探沈瑜接手一桩离奇失踪案。线索如雾中灯火，明灭不定，真相却比浓雾更令人窒息。",
     updatedAt: Date.now() - 1000 * 60 * 60 * 5,
     createdAt: Date.now() - 1000 * 60 * 60 * 24 * 15,
+    outlineAIConfig: { ...DEFAULT_OUTLINE_AI_CONFIG, model: "m1" },
+    contentAIConfig: { ...DEFAULT_CONTENT_AI_CONFIG, model: "m1" },
     chapters: [
       {
         id: "c3",
@@ -80,9 +91,11 @@ const seedNovels: Novel[] = [
     title: "星舰挽歌",
     genre: "科幻太空",
     synopsis:
-      "人类最后的方舟星舰在深空中航行了三百年。当唯一的导航AI开始产生自我意识，船上幸存者们必须面对一个抉择：信任，还是毁灭。",
+      "人类最后的方舟星舰在深空中航行了三百年。当唯一的导航AI开始产生自我意识，船上幸存者们必须面对一个选择：信任，还是毁灭。",
     updatedAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
     createdAt: Date.now() - 1000 * 60 * 60 * 24 * 7,
+    outlineAIConfig: { ...DEFAULT_OUTLINE_AI_CONFIG, model: "m1" },
+    contentAIConfig: { ...DEFAULT_CONTENT_AI_CONFIG, model: "m1" },
     chapters: [
       {
         id: "c4",
@@ -199,16 +212,74 @@ const seedEntries: Entry[] = [
   },
 ]
 
+const seedPromptEntries: PromptEntry[] = [
+  {
+    id: "pe-1",
+    name: "段落长度控制",
+    content: "每段正文控制在150-300字之间，避免长段堆砌",
+    scope: "global",
+    group: "format",
+    weight: 8,
+    active: true,
+    isSystem: false,
+    createdAt: new Date(Date.now() - 86400000 * 14).toISOString(),
+  },
+  {
+    id: "pe-2",
+    name: "避免重复用词",
+    content: "同一段落内避免使用相同词语超过两次，注意用词多样性",
+    scope: "global",
+    group: "format",
+    weight: 7,
+    active: true,
+    isSystem: false,
+    createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
+  },
+  {
+    id: "pe-3",
+    name: "文风提示词",
+    content: "文笔细腻，善用环境描写烘托情绪，人物心理描写深刻，战斗场面节奏明快",
+    scope: "novel",
+    novelId: "n1",
+    group: "style",
+    weight: 9,
+    active: true,
+    isSystem: false,
+    createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
+  },
+  {
+    id: "pe-4",
+    name: "禁止提示词",
+    content: "禁止使用网络流行语，避免现代词汇，不使用低俗描写",
+    scope: "novel",
+    novelId: "n1",
+    group: "forbidden",
+    weight: 9,
+    active: true,
+    isSystem: false,
+    createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
+  },
+]
+
+export type EffectivePromptEntry = PromptEntry & { effectiveActive: boolean }
+
 type Store = {
   novels: Novel[]
   models: ModelConfig[]
   entries: Entry[]
+  promptEntries: PromptEntry[]
   setNovels: React.Dispatch<React.SetStateAction<Novel[]>>
   setModels: React.Dispatch<React.SetStateAction<ModelConfig[]>>
   setEntries: React.Dispatch<React.SetStateAction<Entry[]>>
+  setPromptEntries: React.Dispatch<React.SetStateAction<PromptEntry[]>>
   createNovel: (data: { title: string; genre: string; synopsis: string }) => string
   deleteNovel: (id: string) => void
   updateNovel: (id: string, updater: (n: Novel) => Novel) => void
+  addPromptEntry: (entry: Omit<PromptEntry, "id" | "createdAt">) => void
+  updatePromptEntry: (id: string, changes: Partial<PromptEntry>) => void
+  deletePromptEntry: (id: string) => void
+  getPromptEntriesForNovel: (novelId: string) => PromptEntry[]
+  getPromptEntriesForAct: (novelId: string, actConfig: ActAIConfig | null) => EffectivePromptEntry[]
 }
 
 const StoreContext = createContext<Store | null>(null)
@@ -217,6 +288,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [novels, setNovels] = useState<Novel[]>(seedNovels)
   const [models, setModels] = useState<ModelConfig[]>(seedModels)
   const [entries, setEntries] = useState<Entry[]>(seedEntries)
+  const [promptEntries, setPromptEntries] = useState<PromptEntry[]>(seedPromptEntries)
 
   const createNovel: Store["createNovel"] = (data) => {
     const id = uid()
@@ -226,6 +298,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       genre: data.genre || "其他",
       synopsis: data.synopsis,
       updatedAt: Date.now(),
+      outlineAIConfig: { ...DEFAULT_OUTLINE_AI_CONFIG },
+      contentAIConfig: { ...DEFAULT_CONTENT_AI_CONFIG },
       chapters: [
         {
           id: uid(),
@@ -242,6 +316,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const deleteNovel: Store["deleteNovel"] = (id) => {
     setNovels((prev) => prev.filter((n) => n.id !== id))
+    setPromptEntries((prev) =>
+      prev.filter((e) => e.scope !== "novel" || e.novelId !== id),
+    )
+    setEntries((prev) => prev.filter((e) => e.novelId !== id))
   }
 
   const updateNovel: Store["updateNovel"] = (id, updater) => {
@@ -250,18 +328,66 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     )
   }
 
+  const addPromptEntry: Store["addPromptEntry"] = (entry) => {
+    const full: PromptEntry = {
+      ...entry,
+      id: uid(),
+      createdAt: new Date().toISOString(),
+    }
+    setPromptEntries((prev) => [full, ...prev])
+  }
+
+  const updatePromptEntry: Store["updatePromptEntry"] = (id, changes) => {
+    setPromptEntries((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, ...changes } : e)),
+    )
+  }
+
+  const deletePromptEntry: Store["deletePromptEntry"] = (id) => {
+    const entry = promptEntries.find((e) => e.id === id)
+    if (entry?.isSystem) return
+    setPromptEntries((prev) => prev.filter((e) => e.id !== id))
+  }
+
+  const getPromptEntriesForNovel: Store["getPromptEntriesForNovel"] = (novelId) => {
+    return promptEntries
+      .filter(
+        (e) => e.scope === "global" || (e.scope === "novel" && e.novelId === novelId),
+      )
+      .sort((a, b) => b.weight - a.weight)
+  }
+
+  const getPromptEntriesForAct: Store["getPromptEntriesForAct"] = (
+    novelId,
+    actConfig,
+  ) => {
+    const overrides = actConfig?.promptOverrides ?? []
+    return getPromptEntriesForNovel(novelId)
+      .map((entry) => ({
+        ...entry,
+        effectiveActive: resolvePromptActive(entry, overrides),
+      }))
+  }
+
   return (
     <StoreContext.Provider
       value={{
         novels,
         models,
         entries,
+        promptEntries,
         setNovels,
         setModels,
         setEntries,
+        setPromptEntries,
         createNovel,
         deleteNovel,
         updateNovel,
+        addPromptEntry,
+        updatePromptEntry,
+        deletePromptEntry,
+        getPromptEntriesForNovel,
+        getPromptEntriesForAct,
       }}
     >
       {children}

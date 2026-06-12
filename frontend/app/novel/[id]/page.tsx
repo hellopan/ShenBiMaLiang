@@ -1,13 +1,14 @@
 "use client"
 
-import React, { use, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import React, { use, useEffect, useMemo, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { notFound } from "next/navigation"
 import {
   BookOpen,
   CalendarRange,
   ChevronDown,
   Download,
+  Eye,
   FileText,
   GitFork,
   GripVertical,
@@ -15,14 +16,11 @@ import {
   RefreshCw,
   Sparkles,
   Users,
-  Wand2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Slider } from "@/components/ui/slider"
 import {
   Select,
   SelectContent,
@@ -36,13 +34,15 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { EncyclopediaPanel } from "@/components/encyclopedia/encyclopedia-panel"
+import { PromptEntriesPanel } from "@/components/prompts/prompt-entries-panel"
+import { NovelAIConfigForm } from "@/components/prompts/novel-ai-config-form"
+import { PromptPreviewSheet } from "@/components/prompts/prompt-preview-sheet"
 import { useStore, uid } from "@/lib/store"
 import {
   type Novel,
-  type OutlineGenConfig,
   type ModelConfig,
-  DEFAULT_OUTLINE_CONFIG,
-  DEFAULT_CONTENT_CONFIG,
+  DEFAULT_OUTLINE_AI_CONFIG,
+  DEFAULT_CONTENT_AI_CONFIG,
   novelWordCount,
   chapterWordCount,
   relativeTime,
@@ -67,10 +67,10 @@ function getGradient(genre: string) {
 const SECTION_TITLES: Record<string, string> = {
   overview: "总览",
   basic: "基本信息",
-  writing: "写作配置",
   outline: "大纲生成",
   chapters: "章节概览",
   encyclopedia: "世界词条",
+  prompts: "提示词",
   timeline: "时间线",
   "character-status": "人物状态",
   characters: "人物关系图",
@@ -113,95 +113,22 @@ function buildMockOutline(chapterCount: number, actsPerChapter: number): MockCha
   })
 }
 
-// ── GenParams form ────────────────────────────────────────────────────────
-function GenConfigForm({
-  label,
-  hint,
-  config,
-  models,
-  onChange,
-}: {
-  label: string
-  hint: string
-  config: OutlineGenConfig
-  models: ModelConfig[]
-  onChange: (patch: Partial<OutlineGenConfig>) => void
-}) {
-  return (
-    <div className="flex flex-col gap-4 rounded-lg border border-border bg-card/40 p-4">
-      <div>
-        <p className="text-sm font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground">{hint}</p>
-      </div>
-      {models.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-muted-foreground">模型</label>
-          <Select
-            value={config.modelId || models[0]?.id || ""}
-            onValueChange={(v) => onChange({ modelId: v ?? undefined })}
-          >
-            <SelectTrigger size="sm" className="w-full text-xs">
-              <SelectValue>
-                {() =>
-                  models.find((m) => m.id === config.modelId)?.label ??
-                  models[0]?.label ??
-                  "选择模型"
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {models.map((m) => (
-                  <SelectItem key={m.id} value={m.id} className="text-xs">
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <label className="text-xs text-muted-foreground">温度</label>
-          <span className="text-xs tabular-nums">{config.temperature.toFixed(1)}</span>
-        </div>
-        <Slider min={0} max={2} step={0.1} value={[config.temperature]}
-          onValueChange={(v) => onChange({ temperature: Array.isArray(v) ? v[0] : v })} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <label className="text-xs text-muted-foreground">Top P</label>
-          <span className="text-xs tabular-nums">{config.topP.toFixed(2)}</span>
-        </div>
-        <Slider min={0} max={1} step={0.05} value={[config.topP]}
-          onValueChange={(v) => onChange({ topP: Array.isArray(v) ? v[0] : v })} />
-      </div>
-      <div className="flex items-center justify-between gap-3">
-        <label className="text-xs text-muted-foreground">Top K</label>
-        <Input type="number" min={1} max={100} value={config.topK}
-          onChange={(e) => onChange({ topK: parseInt(e.target.value) || 1 })}
-          className="h-7 w-20 text-xs" />
-      </div>
-      <div className="flex items-center justify-between gap-3">
-        <label className="text-xs text-muted-foreground">最大回复长度</label>
-        <Input type="number" min={1000} value={config.maxReplyLength}
-          onChange={(e) => onChange({ maxReplyLength: parseInt(e.target.value) || 60000 })}
-          className="h-7 w-28 text-xs" />
-      </div>
-      <p className="text-[11px] text-muted-foreground/70">幕级别可单独覆盖此配置</p>
-    </div>
-  )
-}
-
 // ── Main page ─────────────────────────────────────────────────────────────
 export default function NovelDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { novels, updateNovel, models } = useStore()
   const novel = novels.find((n) => n.id === id)
   const [activeSection, setActiveSection] = useState("overview")
   const activeModels = useMemo(() => models.filter((m) => m.active), [models])
+
+  useEffect(() => {
+    const section = searchParams.get("section")
+    if (section && section in SECTION_TITLES) {
+      setActiveSection(section)
+    }
+  }, [searchParams])
 
   if (!novel) return notFound()
 
@@ -247,15 +174,12 @@ export default function NovelDetailPage({ params }: { params: Promise<{ id: stri
             {activeSection === "basic" && (
               <SectionBasicInfo novel={novel} patch={patch} totalWords={totalWords} />
             )}
-            {activeSection === "writing" && (
-              <SectionWritingConfig novel={novel} patch={patch} models={activeModels} />
-            )}
             {activeSection === "outline" && (
               <SectionOutlineGen
                 novel={novel}
                 models={activeModels}
                 novelId={id}
-                onSwitchToWriting={() => setActiveSection("writing")}
+                patch={patch}
                 onApply={(chapters) => {
                   updateNovel(id, (n) => ({
                     ...n,
@@ -272,9 +196,25 @@ export default function NovelDetailPage({ params }: { params: Promise<{ id: stri
               />
             )}
             {activeSection === "chapters" && (
-              <SectionChapterOverview novel={novel} novelId={id} />
+              <SectionChapterOverview novel={novel} novelId={id} models={activeModels} patch={patch} />
             )}
             {activeSection === "encyclopedia" && <EncyclopediaPanel novelId={id} />}
+            {activeSection === "prompts" && (
+              <div className="flex flex-col gap-4">
+                <p className="text-sm text-muted-foreground">
+                  该小说的专属词条与继承的全局词条。全局词条请在
+                  <button
+                    type="button"
+                    className="mx-1 text-primary hover:underline"
+                    onClick={() => router.push("/prompts")}
+                  >
+                    提示词库
+                  </button>
+                  中管理。
+                </p>
+                <PromptEntriesPanel novelId={id} showScopeFilter={false} />
+              </div>
+            )}
             {activeSection === "timeline" && <SectionPlaceholder icon={CalendarRange} title="时间线" description="梳理故事发展的时间轴，追踪关键事件节点与时间跨度" />}
             {activeSection === "character-status" && <SectionPlaceholder icon={Users} title="人物状态" description="追踪每个章节中角色的状态变化、属性成长与当前处境" />}
             {activeSection === "characters" && <SectionPlaceholder icon={GitFork} title="人物关系图" description="可视化展示小说中角色之间的关系网络，支持自定义关系类型" />}
@@ -393,7 +333,7 @@ function SectionOverview({
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: "编辑基本信息", section: "basic" },
-          { label: "写作配置", section: "writing" },
+          { label: "大纲生成", section: "outline" },
           { label: "章节概览", section: "chapters" },
         ].map(({ label, section }) => (
           <button
@@ -513,88 +453,56 @@ function SectionBasicInfo({
   )
 }
 
-// ── Section: 写作配置 ─────────────────────────────────────────────────────
-function SectionWritingConfig({
-  novel, patch, models,
-}: {
-  novel: Novel
-  patch: (updater: (n: Novel) => Partial<Novel>) => void
-  models: ModelConfig[]
-}) {
-  const [stylePrompt, setStylePrompt] = useState(novel.stylePrompt ?? "")
-  const [forbiddenPrompt, setForbiddenPrompt] = useState(novel.forbiddenPrompt ?? "")
-  const outlineConfig = novel.outlineConfig ?? DEFAULT_OUTLINE_CONFIG
-  const contentConfig = novel.contentConfig ?? DEFAULT_CONTENT_CONFIG
-
-  return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-4">
-        <div>
-          <h3 className="text-sm font-semibold">内容提示词</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">全书通用的写作风格指引，AI 生成时自动引用</p>
-        </div>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">文风提示词</label>
-            <Textarea value={stylePrompt} onChange={(e) => setStylePrompt(e.target.value)}
-              onBlur={() => patch(() => ({ stylePrompt }))}
-              placeholder="描述写作风格，如：文笔细腻，善用环境描写烘托情绪……"
-              rows={4} className="resize-none" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">禁止提示词</label>
-            <Textarea value={forbiddenPrompt} onChange={(e) => setForbiddenPrompt(e.target.value)}
-              onBlur={() => patch(() => ({ forbiddenPrompt }))}
-              placeholder="禁止出现的内容，如：禁止使用网络流行语……"
-              rows={3} className="resize-none" />
-          </div>
-        </div>
-      </div>
-      <Separator />
-      <div>
-        <h3 className="text-sm font-semibold">默认 AI 配置</h3>
-        <p className="mt-0.5 text-xs text-muted-foreground">新建幕时自动继承正文配置；大纲生成时使用大纲配置</p>
-      </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <GenConfigForm label="大纲生成默认配置" hint="用于生成章节大纲"
-          config={outlineConfig} models={models}
-          onChange={(p) => patch(() => ({ outlineConfig: { ...outlineConfig, ...p } }))} />
-        <GenConfigForm label="正文生成默认配置" hint="新建幕时自动继承"
-          config={contentConfig} models={models}
-          onChange={(p) => patch(() => ({ contentConfig: { ...contentConfig, ...p } }))} />
-      </div>
-    </div>
-  )
-}
-
 // ── Section: 大纲生成 ─────────────────────────────────────────────────────
 type GeneratedChapter = MockChapter & { expanded: boolean }
 
 function SectionOutlineGen({
-  novel, models, novelId, onSwitchToWriting, onApply,
+  novel,
+  models,
+  novelId,
+  patch,
+  onApply,
 }: {
   novel: Novel
   models: ModelConfig[]
   novelId: string
-  onSwitchToWriting: () => void
+  patch: (updater: (n: Novel) => Partial<Novel>) => void
   onApply: (chapters: MockChapter[]) => void
 }) {
+  const { getPromptEntriesForNovel } = useStore()
   const [chapterCount, setChapterCount] = useState(10)
   const [actsPerChapter, setActsPerChapter] = useState(3)
   const [generating, setGenerating] = useState(false)
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState<GeneratedChapter[]>([])
+  const [aiParamsOpen, setAiParamsOpen] = useState(true)
+  const [promptSelectOpen, setPromptSelectOpen] = useState(true)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [promptOverrides, setPromptOverrides] = useState<Record<string, boolean>>({})
 
-  const currentModelLabel =
-    models.find((m) => m.id === novel.outlineConfig?.modelId)?.label ?? models[0]?.label ?? "未配置"
+  const outlineAIConfig = novel.outlineAIConfig ?? DEFAULT_OUTLINE_AI_CONFIG
+  const promptEntries = getPromptEntriesForNovel(novelId)
+
+  function getPromptActive(entryId: string, defaultActive: boolean) {
+    return entryId in promptOverrides ? promptOverrides[entryId] : defaultActive
+  }
+
+  const activeEntryIds = promptEntries
+    .filter((e) => getPromptActive(e.id, e.active))
+    .map((e) => e.id)
 
   function handleGenerate() {
-    setGenerating(true); setProgress(0); setResult([])
-    const total = chapterCount; let done = 0
+    setGenerating(true)
+    setProgress(0)
+    setResult([])
+    const total = chapterCount
+    let done = 0
     const interval = setInterval(() => {
-      done++; setProgress(done)
+      done++
+      setProgress(done)
       if (done >= total) {
-        clearInterval(interval); setGenerating(false)
+        clearInterval(interval)
+        setGenerating(false)
         setResult(buildMockOutline(total, actsPerChapter).map((c) => ({ ...c, expanded: false })))
       }
     }, 200)
@@ -602,70 +510,206 @@ function SectionOutlineGen({
 
   return (
     <div className="flex flex-col gap-6">
+      <Collapsible open={aiParamsOpen} onOpenChange={setAiParamsOpen}>
+        <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-lg border border-border bg-card/40 px-4 py-3 text-sm font-medium hover:bg-card/60">
+          <ChevronDown className={cn("size-4 transition-transform", !aiParamsOpen && "-rotate-90")} />
+          大纲 AI 参数
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3">
+          <div className="rounded-lg border border-border bg-card/40 p-4">
+            <NovelAIConfigForm
+              config={outlineAIConfig}
+              models={models}
+              onChange={(p) =>
+                patch(() => ({
+                  outlineAIConfig: { ...outlineAIConfig, ...p },
+                }))
+              }
+            />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      <Collapsible open={promptSelectOpen} onOpenChange={setPromptSelectOpen}>
+        <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-lg border border-border bg-card/40 px-4 py-3 text-sm font-medium hover:bg-card/60">
+          <ChevronDown className={cn("size-4 transition-transform", !promptSelectOpen && "-rotate-90")} />
+          词条选择
+          <Badge variant="secondary" className="ml-auto text-xs">
+            {activeEntryIds.length}/{promptEntries.length} 已启用
+          </Badge>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3">
+          <PromptEntriesPanel
+            novelId={novelId}
+            showScopeFilter={false}
+            overrideMode
+            overrideStates={promptOverrides}
+            onOverrideChange={(entryId, active) =>
+              setPromptOverrides((prev) => ({ ...prev, [entryId]: active }))
+            }
+          />
+        </CollapsibleContent>
+      </Collapsible>
+
       <div className="flex flex-wrap items-end gap-4 rounded-lg border border-border bg-card/40 p-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground">生成章节数</label>
-          <Input type="number" min={1} max={100} value={chapterCount}
-            onChange={(e) => setChapterCount(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
-            className="h-8 w-24 text-sm" />
+          <Input
+            type="number"
+            min={1}
+            max={100}
+            value={chapterCount}
+            onChange={(e) =>
+              setChapterCount(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))
+            }
+            className="h-8 w-24 text-sm"
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground">每章幕数</label>
-          <Input type="number" min={1} max={10} value={actsPerChapter}
-            onChange={(e) => setActsPerChapter(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-            className="h-8 w-24 text-sm" />
+          <Input
+            type="number"
+            min={1}
+            max={10}
+            value={actsPerChapter}
+            onChange={(e) =>
+              setActsPerChapter(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))
+            }
+            className="h-8 w-24 text-sm"
+          />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground">使用配置</label>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-xs">{currentModelLabel}</Badge>
-            <button onClick={onSwitchToWriting} className="text-xs text-primary hover:underline">修改</button>
-          </div>
+        <div className="ml-auto flex gap-2">
+          <Button variant="outline" onClick={() => setPreviewOpen(true)}>
+            <Eye className="size-4" />
+            预览完整提示词
+          </Button>
+          <Button
+            onClick={handleGenerate}
+            disabled={generating}
+            className={cn(
+              "!bg-[linear-gradient(135deg,#8b5cf6_0%,#06b6d4_100%)]",
+              "shadow-[0_0_20px_rgba(139,92,246,0.35)]",
+              "hover:!bg-[linear-gradient(135deg,#9333ea_0%,#0891b2_100%)]",
+              "hover:shadow-[0_0_28px_rgba(139,92,246,0.5)]",
+              "text-white border-0",
+            )}
+          >
+            {generating ? (
+              <>
+                <RefreshCw className="size-4 animate-spin" />
+                生成中…
+              </>
+            ) : (
+              <>
+                <Sparkles className="size-4" />
+                生成大纲
+              </>
+            )}
+          </Button>
         </div>
-        <Button onClick={handleGenerate} disabled={generating} className="ml-auto">
-          {generating ? (<><RefreshCw className="size-4 animate-spin" />生成中…</>) : (<><Wand2 />生成大纲</>)}
-        </Button>
       </div>
-      <p className="text-xs text-muted-foreground">将基于小说简介、文风提示词、世界观词条自动生成章节结构</p>
+
+      <p className="text-xs text-muted-foreground">
+        将基于小说简介、提示词词条、世界观词条自动生成章节结构
+      </p>
 
       {generating && (
         <div className="flex flex-col gap-2">
           {Array.from({ length: Math.min(progress + 1, chapterCount) }, (_, i) => (
-            <div key={i} className={cn("h-12 rounded-lg border border-border bg-muted/40", i === progress && "animate-pulse")} />
+            <div
+              key={i}
+              className={cn(
+                "h-12 rounded-lg border border-border bg-muted/40",
+                i === progress && "animate-pulse",
+              )}
+            />
           ))}
-          <p className="text-xs text-muted-foreground">已生成 {progress} / {chapterCount} 章……</p>
+          <p className="text-xs text-muted-foreground">
+            已生成 {progress} / {chapterCount} 章……
+          </p>
         </div>
       )}
 
       {result.length > 0 && !generating && (
         <div className="flex flex-col gap-3">
           {result.map((chapter, ci) => (
-            <Collapsible key={ci} open={chapter.expanded}
-              onOpenChange={(open) => setResult((prev) => prev.map((c, i) => (i === ci ? { ...c, expanded: open } : c)))}>
+            <Collapsible
+              key={ci}
+              open={chapter.expanded}
+              onOpenChange={(open) =>
+                setResult((prev) => prev.map((c, i) => (i === ci ? { ...c, expanded: open } : c)))
+              }
+            >
               <div className="rounded-lg border border-border bg-card/40">
                 <div className="flex items-center gap-3 px-4 py-3">
                   <CollapsibleTrigger render={<button className="flex flex-1 items-center gap-2 text-left" />}>
-                    <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", !chapter.expanded && "-rotate-90")} />
+                    <ChevronDown
+                      className={cn(
+                        "size-4 shrink-0 text-muted-foreground transition-transform",
+                        !chapter.expanded && "-rotate-90",
+                      )}
+                    />
                     <span className="text-sm font-medium">{chapter.title}</span>
-                    <Badge variant="outline" className="ml-1 text-xs">{chapter.acts.length} 幕</Badge>
+                    <Badge variant="outline" className="ml-1 text-xs">
+                      {chapter.acts.length} 幕
+                    </Badge>
                   </CollapsibleTrigger>
-                  <Button size="sm" variant="ghost" className="shrink-0 text-xs text-muted-foreground"
-                    onClick={() => setResult((prev) => prev.map((c, i) => i === ci ? { ...buildMockOutline(1, c.acts.length)[0], expanded: c.expanded } : c))}>
-                    <RefreshCw className="size-3" />重新生成
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="shrink-0 text-xs text-muted-foreground"
+                    onClick={() =>
+                      setResult((prev) =>
+                        prev.map((c, i) =>
+                          i === ci
+                            ? { ...buildMockOutline(1, c.acts.length)[0], expanded: c.expanded }
+                            : c,
+                        ),
+                      )
+                    }
+                  >
+                    <RefreshCw className="size-3" />
+                    重新生成
                   </Button>
                 </div>
                 <CollapsibleContent>
-                  <div className="border-t border-border px-4 py-3 flex flex-col gap-3">
-                    <Textarea value={chapter.summary}
-                      onChange={(e) => setResult((prev) => prev.map((c, i) => i === ci ? { ...c, summary: e.target.value } : c))}
-                      rows={2} className="resize-none text-sm" placeholder="章节概要……" />
+                  <div className="flex flex-col gap-3 border-t border-border px-4 py-3">
+                    <Textarea
+                      value={chapter.summary}
+                      onChange={(e) =>
+                        setResult((prev) =>
+                          prev.map((c, i) => (i === ci ? { ...c, summary: e.target.value } : c)),
+                        )
+                      }
+                      rows={2}
+                      className="resize-none text-sm"
+                      placeholder="章节概要……"
+                    />
                     <div className="flex flex-col gap-2">
                       {chapter.acts.map((act, ai) => (
                         <div key={ai} className="flex items-start gap-3">
-                          <span className="mt-2 shrink-0 text-xs tabular-nums text-muted-foreground">第 {ai + 1} 幕</span>
-                          <Textarea value={act.outline}
-                            onChange={(e) => setResult((prev) => prev.map((c, i) => i === ci ? { ...c, acts: c.acts.map((a, j) => j === ai ? { outline: e.target.value } : a) } : c))}
-                            rows={2} className="flex-1 resize-none text-sm" />
+                          <span className="mt-2 shrink-0 text-xs tabular-nums text-muted-foreground">
+                            第 {ai + 1} 幕
+                          </span>
+                          <Textarea
+                            value={act.outline}
+                            onChange={(e) =>
+                              setResult((prev) =>
+                                prev.map((c, i) =>
+                                  i === ci
+                                    ? {
+                                        ...c,
+                                        acts: c.acts.map((a, j) =>
+                                          j === ai ? { outline: e.target.value } : a,
+                                        ),
+                                      }
+                                    : c,
+                                ),
+                              )
+                            }
+                            rows={2}
+                            className="flex-1 resize-none text-sm"
+                          />
                         </div>
                       ))}
                     </div>
@@ -675,21 +719,67 @@ function SectionOutlineGen({
             </Collapsible>
           ))}
           <Button className="mt-2 w-full" onClick={() => onApply(result)}>
-            <Sparkles />应用到编辑器
+            <Sparkles />
+            应用到编辑器
           </Button>
         </div>
       )}
+
+      <PromptPreviewSheet
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        novelId={novelId}
+        mode="outline"
+        activeEntryIds={activeEntryIds}
+        chapterCount={chapterCount}
+        actsPerChapter={actsPerChapter}
+      />
     </div>
   )
 }
 
 // ── Section: 章节概览 ─────────────────────────────────────────────────────
-function SectionChapterOverview({ novel, novelId }: { novel: Novel; novelId: string }) {
+function SectionChapterOverview({
+  novel,
+  novelId,
+  models,
+  patch,
+}: {
+  novel: Novel
+  novelId: string
+  models: ModelConfig[]
+  patch: (updater: (n: Novel) => Partial<Novel>) => void
+}) {
   const router = useRouter()
+  const [contentConfigOpen, setContentConfigOpen] = useState(false)
+  const contentAIConfig = novel.contentAIConfig ?? DEFAULT_CONTENT_AI_CONFIG
   const total = novel.chapters.reduce((s, c) => s + chapterWordCount(c), 0)
 
   return (
     <div className="flex flex-col gap-4">
+      <Collapsible open={contentConfigOpen} onOpenChange={setContentConfigOpen}>
+        <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-lg border border-border bg-card/40 px-4 py-3 text-sm font-medium hover:bg-card/60">
+          <ChevronDown
+            className={cn("size-4 transition-transform", !contentConfigOpen && "-rotate-90")}
+          />
+          正文生成默认配置
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3">
+          <div className="rounded-lg border border-border bg-card/40 p-4">
+            <NovelAIConfigForm
+              config={contentAIConfig}
+              models={models}
+              onChange={(p) =>
+                patch(() => ({
+                  contentAIConfig: { ...contentAIConfig, ...p },
+                }))
+              }
+              hint="新建幕时自动继承此配置，幕级别可单独覆盖"
+            />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
       <div className="overflow-hidden rounded-lg border border-border">
         <div className="grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-4 border-b border-border bg-muted/40 px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           <span className="w-5" /><span>章节标题</span>

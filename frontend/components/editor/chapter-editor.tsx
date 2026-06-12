@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ChevronDown, Play, Plus, Settings, Trash2 } from "lucide-react"
+import { ChevronDown, Eye, Play, Plus, Settings, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { PromptPreviewSheet } from "@/components/prompts/prompt-preview-sheet"
 import { cn } from "@/lib/utils"
 import { type Chapter, type Act, wordCount, getActColor } from "@/lib/types"
 
@@ -13,12 +14,11 @@ const MOCK_EXPAND =
   "夜色如墨，泼洒在青云山脉连绵的峰峦之上。林墨独自盘膝坐在断崖边，残剑横于膝前，剑身上那层经年的锈迹在月光下泛着幽冷的微光。他闭目凝神，引导着体内那道初醒的灵脉缓缓流转，每一次呼吸都仿佛与天地间无形的气机共鸣。\n\n忽然，残剑轻轻一颤，发出一声几不可闻的清鸣。林墨睁开双眼，眸中映着剑光，亦映着远方翻涌的云海。他知道，从踏入裂谷的那一刻起，命运的齿轮便已不可逆转地转动起来。前路漫漫，纵有万难，他也要握紧手中这柄古剑，一步步走向那传说中的星河之巅。"
 
 type Props = {
+  novelId: string
   chapter: Chapter
   activeActId: string | null
   onChangeTitle: (title: string) => void
   onChangeOutline: (outline: string) => void
-  onChangeStylePrompt: (v: string) => void
-  onChangeForbidPrompt: (v: string) => void
   onChangeAct: (actId: string, patch: Partial<Act>) => void
   onAddAct: () => void
   onDeleteAct: (actId: string) => void
@@ -27,12 +27,11 @@ type Props = {
 }
 
 export function ChapterEditor({
+  novelId,
   chapter,
   activeActId,
   onChangeTitle,
   onChangeOutline,
-  onChangeStylePrompt,
-  onChangeForbidPrompt,
   onChangeAct,
   onAddAct,
   onDeleteAct,
@@ -40,8 +39,6 @@ export function ChapterEditor({
   onActSettingsClick,
 }: Props) {
   const [outlineOpen, setOutlineOpen] = useState(true)
-  const [styleOpen, setStyleOpen] = useState(false)
-  const [forbidOpen, setForbidOpen] = useState(false)
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-8 py-8">
@@ -75,48 +72,6 @@ export function ChapterEditor({
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Style prompt (collapsible) */}
-      <Collapsible open={styleOpen} onOpenChange={setStyleOpen}>
-        <CollapsibleTrigger
-          render={
-            <button className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground" />
-          }
-        >
-          <ChevronDown className={cn("size-3.5 transition-transform", !styleOpen && "-rotate-90")} />
-          文风提示词
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-2">
-          <Textarea
-            value={chapter.stylePrompt ?? ""}
-            onChange={(e) => onChangeStylePrompt(e.target.value)}
-            placeholder="描述本章希望呈现的文风、语气与叙事风格……"
-            rows={3}
-            className="resize-none bg-muted/40"
-          />
-        </CollapsibleContent>
-      </Collapsible>
-
-      {/* Forbidden prompt (collapsible) */}
-      <Collapsible open={forbidOpen} onOpenChange={setForbidOpen}>
-        <CollapsibleTrigger
-          render={
-            <button className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground" />
-          }
-        >
-          <ChevronDown className={cn("size-3.5 transition-transform", !forbidOpen && "-rotate-90")} />
-          禁止提示词
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-2">
-          <Textarea
-            value={chapter.forbidPrompt ?? ""}
-            onChange={(e) => onChangeForbidPrompt(e.target.value)}
-            placeholder="列出 AI 生成时应避免出现的内容、词汇或情节……"
-            rows={3}
-            className="resize-none bg-muted/40"
-          />
-        </CollapsibleContent>
-      </Collapsible>
-
       <Separator />
 
       {/* Acts */}
@@ -124,6 +79,8 @@ export function ChapterEditor({
         {chapter.acts.map((act, i) => (
           <ActBlock
             key={act.id}
+            novelId={novelId}
+            chapterId={chapter.id}
             index={i}
             act={act}
             color={getActColor(i)}
@@ -147,6 +104,8 @@ export function ChapterEditor({
 
 // ── Act block ─────────────────────────────────────────────────────────────────
 function ActBlock({
+  novelId,
+  chapterId,
   index,
   act,
   color,
@@ -157,6 +116,8 @@ function ActBlock({
   onSettingsClick,
   canDelete,
 }: {
+  novelId: string
+  chapterId: string
   index: number
   act: Act
   color: string
@@ -168,6 +129,7 @@ function ActBlock({
   canDelete: boolean
 }) {
   const [generating, setGenerating] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   function stopTimer() {
@@ -237,7 +199,16 @@ function ActBlock({
           <Settings className="size-3.5" />
         </Button>
 
-        {/* Expand button */}
+        {/* Preview + Expand */}
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          onClick={() => setPreviewOpen(true)}
+          aria-label="预览提示词"
+          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+        >
+          <Eye className="size-3.5" />
+        </Button>
         <Button
           size="sm"
           variant="ghost"
@@ -284,6 +255,15 @@ function ActBlock({
           <span className="ml-0.5 mt-1 inline-block h-4 w-0.5 animate-pulse bg-primary align-text-bottom" />
         )}
       </div>
+
+      <PromptPreviewSheet
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        novelId={novelId}
+        chapterId={chapterId}
+        actId={act.id}
+        mode="expand"
+      />
     </section>
   )
 }

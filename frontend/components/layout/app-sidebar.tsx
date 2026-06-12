@@ -4,6 +4,7 @@ import { useEffect, useState, type ComponentType, type CSSProperties } from "rea
 import { useRouter } from "next/navigation"
 import {
   BarChart2,
+  BookMarked,
   BookOpen,
   CalendarRange,
   Feather,
@@ -15,7 +16,6 @@ import {
   List,
   ScrollText,
   Settings,
-  SlidersHorizontal,
   Sparkles,
   Users,
 } from "lucide-react"
@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils"
 const HOME_NAV = [
   { key: "bookshelf", label: "我的书架", icon: BookOpen, href: "/" },
   { key: "inspiration", label: "灵感片段", icon: Lightbulb, href: "/inspiration" },
+  { key: "prompts", label: "提示词库", icon: BookMarked, href: "/prompts" },
   { key: "stats", label: "统计分析", icon: BarChart2, href: "/stats" },
   { key: "logs", label: "请求日志", icon: ScrollText, href: "/logs" },
   { key: "about", label: "关于", icon: Info, href: "/about" },
@@ -36,10 +37,10 @@ const HOME_NAV = [
 const NOVEL_NAV_TOP = [
   { key: "overview", label: "总览", icon: LayoutDashboard },
   { key: "basic", label: "基本信息", icon: Info },
-  { key: "writing", label: "写作配置", icon: SlidersHorizontal },
   { key: "outline", label: "大纲生成", icon: Sparkles },
   { key: "chapters", label: "章节概览", icon: List },
   { key: "encyclopedia", label: "世界词条", icon: Globe },
+  { key: "prompts", label: "提示词", icon: BookMarked },
 ]
 
 const NOVEL_NAV_EXTRA = [
@@ -51,6 +52,7 @@ const NOVEL_NAV_EXTRA = [
 const NOVEL_BOTTOM_NAV = [
   { key: "bookshelf", label: "我的书架", icon: BookOpen, href: "/" },
   { key: "inspiration", label: "灵感片段", icon: Lightbulb, href: "/inspiration" },
+  { key: "prompts", label: "提示词库", icon: BookMarked, href: "/prompts" },
   { key: "stats", label: "统计分析", icon: BarChart2, href: "/stats" },
   { key: "logs", label: "请求日志", icon: ScrollText, href: "/logs" },
   { key: "about", label: "关于", icon: Info, href: "/about" },
