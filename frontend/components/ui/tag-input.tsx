@@ -63,6 +63,7 @@ export function TagInput({
           </Badge>
         ))}
         <input
+          data-slot="tag-input-field"
           id={id}
           value={input}
           onChange={(e) => setInput(e.target.value)}

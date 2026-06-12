@@ -234,7 +234,7 @@ html.glass [data-slot="card"] {
 }
 
 /* ── Glass-only: Input / Textarea ───────────────────────────────────────── */
-html.glass input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.glass input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([data-slot="tag-input-field"]),
 html.glass textarea,
 html.glass select {
   background: rgba(255, 255, 255, 0.06) !important;
@@ -243,13 +243,13 @@ html.glass select {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
-html.glass input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+html.glass input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([data-slot="tag-input-field"]):focus,
 html.glass textarea:focus {
   border-color: rgba(99, 102, 241, 0.60) !important;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
   outline: none !important;
 }
-html.glass input::placeholder,
+html.glass input:not([data-slot="tag-input-field"])::placeholder,
 html.glass textarea::placeholder {
   color: rgba(255, 255, 255, 0.30) !important;
 }
@@ -264,9 +264,9 @@ html.glass [data-slot="tag-input"]:focus-within {
   border-color: rgba(99, 102, 241, 0.60) !important;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
 }
-html.glass [data-slot="tag-input"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-html.glass [data-slot="tag-input"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
-html.glass [data-slot="tag-input"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus-visible {
+html.glass [data-slot="tag-input-field"],
+html.glass [data-slot="tag-input-field"]:focus,
+html.glass [data-slot="tag-input-field"]:focus-visible {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
