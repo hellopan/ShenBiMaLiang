@@ -21,14 +21,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -57,6 +49,19 @@ import {
   formatGenres,
 } from "@/lib/genres"
 import { NovelGenrePicker } from "@/components/novel-genre-picker"
+import { PresetTagPicker } from "@/components/preset-tag-picker"
+import { SectionCompletenessBar } from "@/components/section-completeness-bar"
+import {
+  NARRATIVE_PERSPECTIVES,
+  STORY_TONES,
+  PLOT_PACINGS,
+  ROMANCE_LINE_PRESETS,
+  CONFLICT_TYPE_PRESETS,
+} from "@/lib/novel-meta"
+import {
+  calcBasicInfoCompleteness,
+  getBasicInfoCompletenessDisplay,
+} from "@/lib/section-completeness/basic-info"
 
 // ── Section metadata ────────────────────────────────────────────────────
 const SECTION_TITLES: Record<string, string> = {
@@ -132,18 +137,7 @@ export default function NovelDetailPage({ params }: { params: Promise<{ id: stri
           onNavigate={setActiveSection}
         />
 
-        <main className="relative flex flex-1 flex-col overflow-hidden">
-          {/* Floating "开始创作" button */}
-          <div className="pointer-events-none absolute right-6 top-6 z-10">
-            <Button
-              className="pointer-events-auto h-10 justify-center rounded-lg px-6 text-sm font-semibold shadow-md"
-              onClick={() => router.push(`/editor/${id}`)}
-            >
-              <PenLine className="size-4" />
-              开始创作
-            </Button>
-          </div>
-
+        <main className="flex flex-1 flex-col overflow-hidden">
           {/* Scrollable section content */}
           <div className="flex-1 overflow-y-auto px-8 py-8">
             {activeSection === "overview" && (
@@ -155,7 +149,7 @@ export default function NovelDetailPage({ params }: { params: Promise<{ id: stri
               />
             )}
             {activeSection === "basic" && (
-              <SectionBasicInfo novel={novel} patch={patch} totalWords={totalWords} />
+              <SectionBasicInfo novel={novel} patch={patch} />
             )}
             {activeSection === "outline" && (
               <SectionOutlineGen
@@ -336,29 +330,49 @@ function SectionOverview({
 function SectionBasicInfo({
   novel,
   patch,
-  totalWords,
 }: {
   novel: Novel
   patch: (updater: (n: Novel) => Partial<Novel>) => void
-  totalWords: number
 }) {
   const [local, setLocal] = useState({
     title: novel.title,
     synopsis: novel.synopsis,
     targetWordCount: novel.targetWordCount ?? "",
-    writingLanguage: novel.writingLanguage ?? "现代白话文",
   })
   const [genreTags, setGenreTags] = useState(() => parseGenres(novel.genre))
+  const [perspectiveTags, setPerspectiveTags] = useState(() =>
+    parseGenres(novel.narrativePerspective ?? ""),
+  )
+  const [toneTags, setToneTags] = useState(() => parseGenres(novel.storyTone ?? ""))
+  const [pacingTags, setPacingTags] = useState(() => parseGenres(novel.plotPacing ?? ""))
+  const [romanceTags, setRomanceTags] = useState(() => parseGenres(novel.romanceLine ?? ""))
+  const [conflictTags, setConflictTags] = useState(() => parseGenres(novel.conflictType ?? ""))
+  const [advancedOpen, setAdvancedOpen] = useState(false)
 
   useEffect(() => {
     setLocal({
       title: novel.title,
       synopsis: novel.synopsis,
       targetWordCount: novel.targetWordCount ?? "",
-      writingLanguage: novel.writingLanguage ?? "现代白话文",
     })
     setGenreTags(parseGenres(novel.genre))
-  }, [novel.id, novel.title, novel.genre, novel.synopsis, novel.targetWordCount, novel.writingLanguage])
+    setPerspectiveTags(parseGenres(novel.narrativePerspective ?? ""))
+    setToneTags(parseGenres(novel.storyTone ?? ""))
+    setPacingTags(parseGenres(novel.plotPacing ?? ""))
+    setRomanceTags(parseGenres(novel.romanceLine ?? ""))
+    setConflictTags(parseGenres(novel.conflictType ?? ""))
+  }, [
+    novel.id,
+    novel.title,
+    novel.genre,
+    novel.synopsis,
+    novel.targetWordCount,
+    novel.narrativePerspective,
+    novel.storyTone,
+    novel.plotPacing,
+    novel.romanceLine,
+    novel.conflictType,
+  ])
 
   function save() {
     patch(() => ({
@@ -366,12 +380,47 @@ function SectionBasicInfo({
       genre: formatGenres(genreTags) || novel.genre,
       synopsis: local.synopsis,
       targetWordCount: local.targetWordCount ? Number(local.targetWordCount) : undefined,
-      writingLanguage: local.writingLanguage,
+      narrativePerspective: formatGenres(perspectiveTags) || undefined,
+      storyTone: formatGenres(toneTags) || undefined,
+      plotPacing: formatGenres(pacingTags) || undefined,
+      romanceLine: formatGenres(romanceTags) || undefined,
+      conflictType: formatGenres(conflictTags) || undefined,
     }))
   }
 
+  const formData = useMemo(
+    () => ({
+      title: local.title,
+      synopsis: local.synopsis,
+      targetWordCount: local.targetWordCount,
+      genreTags,
+      perspectiveTags,
+      toneTags,
+      pacingTags,
+      romanceTags,
+      conflictTags,
+    }),
+    [
+      local.title,
+      local.synopsis,
+      local.targetWordCount,
+      genreTags,
+      perspectiveTags,
+      toneTags,
+      pacingTags,
+      romanceTags,
+      conflictTags,
+    ],
+  )
+
+  const completenessDisplay = useMemo(() => {
+    const result = calcBasicInfoCompleteness(formData)
+    return getBasicInfoCompletenessDisplay(result)
+  }, [formData])
+
   return (
     <div className="flex max-w-2xl flex-col gap-8">
+      <SectionCompletenessBar title="资料完整度" {...completenessDisplay} />
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">书名</label>
@@ -395,56 +444,79 @@ function SectionBasicInfo({
             onBlur={save} placeholder="用几句话概括你的故事……"
             rows={4} className="resize-none" />
         </div>
-        <div className="flex gap-4">
-          <div className="flex flex-1 flex-col gap-1.5">
-            <label className="text-sm font-medium">目标字数</label>
-            <Input type="number" value={local.targetWordCount}
-              onChange={(e) => setLocal((s) => ({ ...s, targetWordCount: e.target.value }))}
-              onBlur={save} placeholder="全书目标字数（可选）" />
-          </div>
-          <div className="flex flex-1 flex-col gap-1.5">
-            <label className="text-sm font-medium">写作语言风格</label>
-            <Select value={local.writingLanguage}
-              onValueChange={(v) => { if (v) { setLocal((s) => ({ ...s, writingLanguage: v })); patch(() => ({ writingLanguage: v })) } }}>
-              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {["现代白话文", "古风文言", "轻小说风格", "其他"].map((opt) => (
-                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium">目标字数</label>
+          <Input type="number" value={local.targetWordCount}
+            onChange={(e) => setLocal((s) => ({ ...s, targetWordCount: e.target.value }))}
+            onBlur={save} placeholder="全书目标字数（可选）" />
         </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium">叙事视角</label>
+          <PresetTagPicker
+            id="novel-perspective"
+            presets={NARRATIVE_PERSPECTIVES}
+            value={perspectiveTags}
+            onChange={setPerspectiveTags}
+            single
+            placeholder="如：第三人称有限视角（跟随主角）"
+            description="明确第一人称或第三人称有限，避免生成时人称混乱"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium">故事基调</label>
+          <PresetTagPicker
+            id="novel-tone"
+            presets={STORY_TONES}
+            value={toneTags}
+            onChange={setToneTags}
+            placeholder="输入自定义基调"
+            description="建议 2–3 个形容词，如热血、治愈、悬疑"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium">剧情节奏</label>
+          <PresetTagPicker
+            id="novel-pacing"
+            presets={PLOT_PACINGS}
+            value={pacingTags}
+            onChange={setPacingTags}
+            single
+            placeholder="如：中等偏快，每章都有小高潮"
+            description="简明描述节奏，如「快节奏爽文，每章有冲突」"
+          />
+        </div>
+        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+          <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm font-medium transition-colors hover:bg-muted/50">
+            <ChevronDown className={cn("size-4 shrink-0 transition-transform", !advancedOpen && "-rotate-90")} />
+            高级配置（可选）
+          </CollapsibleTrigger>
+          <CollapsibleContent className="flex flex-col gap-5 pt-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">感情线设置</label>
+              <PresetTagPicker
+                id="novel-romance"
+                presets={ROMANCE_LINE_PRESETS}
+                value={romanceTags}
+                onChange={setRomanceTags}
+                placeholder="如：单主线（与师妹苏瑶），慢热型"
+                description="写清单/多线/无，及感情发展速度"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">主要冲突类型</label>
+              <PresetTagPicker
+                id="novel-conflict"
+                presets={CONFLICT_TYPE_PRESETS}
+                value={conflictTags}
+                onChange={setConflictTags}
+                placeholder="输入自定义冲突类型"
+                description="可选多个，预览时用 + 连接"
+              />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
       <Button onClick={save} className="self-start">保存信息</Button>
-      <div className="rounded-lg border border-border bg-muted/30 p-4">
-        <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">统计数据</p>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {[
-            ["当前总字数", `${totalWords.toLocaleString()} 字`],
-            ["章节数", `${novel.chapters.length} 章`],
-            ["创建时间", novel.createdAt ? relativeTime(novel.createdAt) : "未知"],
-            ["最后更新", relativeTime(novel.updatedAt)],
-          ].map(([label, value]) => (
-            <div key={label} className="flex flex-col gap-0.5">
-              <span className="text-xs text-muted-foreground">{label}</span>
-              <span className="text-sm font-medium">{value}</span>
-            </div>
-          ))}
-        </div>
-        {novel.targetWordCount && (
-          <div className="mt-4">
-            <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-              <span>写作进度</span>
-              <span>{Math.min(100, Math.round((totalWords / novel.targetWordCount) * 100))}%</span>
-            </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary transition-all"
-                style={{ width: `${Math.min(100, (totalWords / novel.targetWordCount) * 100)}%` }} />
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   )
 }

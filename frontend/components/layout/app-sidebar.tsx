@@ -37,10 +37,10 @@ const HOME_NAV = [
 const NOVEL_NAV_TOP = [
   { key: "overview", label: "总览", icon: LayoutDashboard },
   { key: "basic", label: "基本信息", icon: Info },
-  { key: "outline", label: "大纲生成", icon: Sparkles },
-  { key: "chapters", label: "章节概览", icon: List },
   { key: "encyclopedia", label: "世界词条", icon: Globe },
   { key: "prompts", label: "提示词", icon: BookMarked },
+  { key: "outline", label: "大纲生成", icon: Sparkles },
+  { key: "chapters", label: "章节概览", icon: List },
 ]
 
 const NOVEL_NAV_EXTRA = [

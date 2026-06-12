@@ -1,5 +1,6 @@
 import type { Chapter, Entry, Novel, PromptEntry } from "@/lib/types"
 import { PROMPT_GROUP_LABELS } from "@/lib/types"
+import { buildNovelBasicInfoContent } from "@/lib/novel-meta"
 import { sortPromptEntries } from "@/lib/utils"
 
 export type PromptPreviewMode = "outline" | "expand" | "test"
@@ -65,10 +66,10 @@ export function buildPromptPreviewBlocks(options: {
   if (novel) {
     blocks.push({
       id: "novel",
-      badge: "小说背景",
+      badge: "小说基本信息",
       badgeClass: "bg-blue-500/15 text-blue-400",
       borderClass: "border-l-blue-500/60",
-      content: `书名：${novel.title}\n类型：${novel.genre}\n简介：${novel.synopsis || "暂无"}`,
+      content: buildNovelBasicInfoContent(novel),
     })
   }
 

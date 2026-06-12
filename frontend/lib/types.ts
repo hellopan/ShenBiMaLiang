@@ -241,7 +241,11 @@ export type Novel = {
   updatedAt: number
   createdAt?: number
   targetWordCount?: number
-  writingLanguage?: string
+  narrativePerspective?: string
+  storyTone?: string
+  plotPacing?: string
+  romanceLine?: string
+  conflictType?: string
   outlineAIConfig?: NovelAIConfig
   contentAIConfig?: NovelAIConfig
 }

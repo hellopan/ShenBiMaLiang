@@ -33,7 +33,11 @@ const seedNovels: Novel[] = [
     updatedAt: Date.now() - 1000 * 60 * 42,
     createdAt: Date.now() - 1000 * 60 * 60 * 24 * 30,
     targetWordCount: 3000000,
-    writingLanguage: "现代白话文",
+    narrativePerspective: "第三人称有限",
+    storyTone: "热血 / 史诗",
+    plotPacing: "中等偏快",
+    romanceLine: "单 CP 主线 / 慢热暧昧",
+    conflictType: "成长蜕变 / 悬疑解谜 / 阵营对抗",
     outlineAIConfig: { ...DEFAULT_OUTLINE_AI_CONFIG, model: "m1" },
     contentAIConfig: { ...DEFAULT_CONTENT_AI_CONFIG, model: "m1" },
     chapters: [
