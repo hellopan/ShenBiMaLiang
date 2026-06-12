@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { NovelGenrePicker } from "@/components/novel-genre-picker"
+import { formatGenres } from "@/lib/genres"
 
 type Props = {
   open: boolean
@@ -22,17 +24,21 @@ type Props = {
 
 export function NewNovelDialog({ open, onOpenChange, onCreate }: Props) {
   const [title, setTitle] = useState("")
-  const [genre, setGenre] = useState("")
+  const [genreTags, setGenreTags] = useState<string[]>([])
   const [synopsis, setSynopsis] = useState("")
 
   function reset() {
     setTitle("")
-    setGenre("")
+    setGenreTags([])
     setSynopsis("")
   }
 
   function submit() {
-    onCreate({ title: title.trim(), genre: genre.trim(), synopsis: synopsis.trim() })
+    onCreate({
+      title: title.trim(),
+      genre: formatGenres(genreTags),
+      synopsis: synopsis.trim(),
+    })
     reset()
     onOpenChange(false)
   }
@@ -62,13 +68,8 @@ export function NewNovelDialog({ open, onOpenChange, onCreate }: Props) {
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="novel-genre">题材</FieldLabel>
-            <Input
-              id="novel-genre"
-              placeholder="例如：玄幻修真 / 悬疑推理"
-              value={genre}
-              onChange={(e) => setGenre(e.target.value)}
-            />
+            <FieldLabel>题材</FieldLabel>
+            <NovelGenrePicker value={genreTags} onChange={setGenreTags} />
           </Field>
           <Field>
             <FieldLabel htmlFor="novel-synopsis">简介</FieldLabel>

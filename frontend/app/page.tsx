@@ -12,21 +12,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar"
 import { useStore } from "@/lib/store"
 import { type Novel, novelWordCount, relativeTime } from "@/lib/types"
 import { cn } from "@/lib/utils"
-
-// ── Genre → gradient mapping ───────────────────────────────────────────────
-const GENRE_GRADIENTS: Record<string, string> = {
-  玄幻修真: "from-indigo-600 to-purple-700",
-  悬疑推理: "from-slate-600 to-gray-800",
-  科幻太空: "from-cyan-600 to-blue-800",
-  现代都市: "from-rose-500 to-pink-700",
-  历史架空: "from-amber-600 to-orange-700",
-  言情: "from-pink-500 to-rose-600",
-}
-const DEFAULT_GRADIENT = "from-violet-600 to-indigo-700"
-
-function getGradient(genre: string): string {
-  return GENRE_GRADIENTS[genre] ?? DEFAULT_GRADIENT
-}
+import { getGenreGradient } from "@/lib/genres"
 
 // ── Home page ──────────────────────────────────────────────────────────────
 export default function HomePage() {
@@ -135,7 +121,7 @@ export default function HomePage() {
 function NovelCard({ novel, onDelete }: { novel: Novel; onDelete: (id: string) => void }) {
   const router = useRouter()
   const words = novelWordCount(novel)
-  const gradient = getGradient(novel.genre)
+  const gradient = getGenreGradient(novel.genre)
 
   return (
     <div

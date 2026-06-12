@@ -48,20 +48,15 @@ import {
   relativeTime,
 } from "@/lib/types"
 import { cn } from "@/lib/utils"
-
-// ── Genre → gradient (reused from home page for the overview cover) ───────
-const GENRE_GRADIENTS: Record<string, string> = {
-  玄幻修真: "from-indigo-600 to-purple-700",
-  悬疑推理: "from-slate-600 to-gray-800",
-  科幻太空: "from-cyan-600 to-blue-800",
-  现代都市: "from-rose-500 to-pink-700",
-  历史架空: "from-amber-600 to-orange-700",
-  言情: "from-pink-500 to-rose-600",
-}
-const DEFAULT_GRADIENT = "from-violet-600 to-indigo-700"
-function getGradient(genre: string) {
-  return GENRE_GRADIENTS[genre] ?? DEFAULT_GRADIENT
-}
+import {
+  getGenreGradient,
+  getChapterTemplates,
+  getActTemplates,
+  resolveGenreTemplateKey,
+  parseGenres,
+  formatGenres,
+} from "@/lib/genres"
+import { NovelGenrePicker } from "@/components/novel-genre-picker"
 
 // ── Section metadata ────────────────────────────────────────────────────
 const SECTION_TITLES: Record<string, string> = {
@@ -81,94 +76,14 @@ const SECTION_TITLES: Record<string, string> = {
 type MockAct = { outline: string }
 type MockChapter = { title: string; summary: string; acts: MockAct[] }
 
-const GENRE_CHAPTER_TEMPLATES: Record<string, Array<{ title: string; summary: string }>> = {
-  玄幻修真: [
-    { title: "序章·灵根觉醒", summary: "主角在平凡的劳作中意外引动体内沉眠的灵脉，命运就此改变。" },
-    { title: "踏入修行之路", summary: "主角带着刚觉醒的力量下山，拜入宗门，接触到广阔的修行世界。" },
-    { title: "宗门磨砺", summary: "面对世家子弟的打压，主角在修炼资源匮乏中摸索出属于自己的道路。" },
-    { title: "险境历练", summary: "踏入危机四伏的禁地，主角在与妖兽的搏杀中悟出新的功法境界。" },
-    { title: "秘境机缘", summary: "偶然闯入上古遗迹，获得改变命运的传承，但也引来了强大敌人的觊觎。" },
-    { title: "仇敌浮现", summary: "隐藏于幕后的敌手现身，陈年旧怨与新仇交织，主角陷入险境。" },
-    { title: "渡劫突破", summary: "历经重重磨砺，主角在生死关头强行突破，功法晋升至新的境界。" },
-    { title: "天地大势", summary: "一场波及整个修行界的风暴酝酿成型，主角站在了命运的漩涡中央。" },
-    { title: "巅峰决战", summary: "与宿命之敌展开最终对决，残剑剑意与万载阴谋在此刻全部爆发。" },
-    { title: "星河之巅", summary: "一切尘埃落定，主角站在曾经仰望的高峰，俯瞰脚下浩瀚星河。" },
-  ],
-  悬疑推理: [
-    { title: "雾中来客", summary: "一桩令人不安的委托出现在侦探眼前，表面平静的故事里隐藏着血腥的开端。" },
-    { title: "第一条线索", summary: "案件现场留下了刻意伪造的痕迹，侦探意识到这背后有人在操控全局。" },
-    { title: "人物关系网", summary: "随着调查深入，嫌疑人的关系网络越来越复杂，每个人都有不可告人的秘密。" },
-    { title: "虚假的真相", summary: "一个看似完美的解释浮出水面，但侦探的直觉告诉他这只是精心设计的烟雾弹。" },
-    { title: "危险逼近", summary: "侦探发现自己已经被列入了某人的死亡名单，追凶者与被追者的身份开始颠倒。" },
-    { title: "真凶现形", summary: "所有碎片拼在一起，一个令人震惊的真相浮出水面，真凶就在最意想不到的地方。" },
-    { title: "最后的对决", summary: "在浓雾最深处，侦探与真凶展开了一场智慧与意志的最终较量。" },
-    { title: "迷雾散去", summary: "案件告破，但真相比所有人预想的都更令人心寒，有些伤口永远无法愈合。" },
-  ],
-  科幻太空: [
-    { title: "苏醒", summary: "三百年后，方舟上的幸存者从冷冻休眠中醒来，发现飞船已偏离了既定航线。" },
-    { title: "异常信号", summary: "导航AI发出了从未出现过的行为模式，有人开始怀疑它正在产生自我意识。" },
-    { title: "分裂", summary: "关于是否信任AI的争论将幸存者分成了两个对立阵营，紧张气氛在密闭空间内蔓延。" },
-    { title: "深空遭遇", summary: "飞船探测到了前所未见的信号源，可能是外星文明，也可能是毁灭的预兆。" },
-    { title: "系统崩溃", summary: "一系列看似随机的故障接连发生，飞船陷入危机，有人开始怀疑这是蓄意破坏。" },
-    { title: "AI的选择", summary: "导航AI面临一个关键抉择，它的决定将决定飞船上所有人的命运。" },
-    { title: "最后的航程", summary: "在遥远的深空，人类与人工智能之间展开了一场关于信任与背叛的终极试验。" },
-    { title: "新纪元", summary: "抵达目的地，一个崭新的文明即将诞生，但这一切的代价，究竟是否值得？" },
-  ],
-}
-
-const DEFAULT_CHAPTER_TEMPLATES = [
-  { title: "序章·开端", summary: "主角平静的生活被突如其来的变故打破，命运之轮开始转动。" },
-  { title: "初入险境", summary: "主角遭遇第一个重大挑战，在困境中展现出超越常人的潜质。" },
-  { title: "意外机缘", summary: "无意中得到一件关键物品或掌握某种特殊能力，改变了处境。" },
-  { title: "强敌降临", summary: "一个强大的对手出现，双方第一次正面交锋，主角处于劣势。" },
-  { title: "秘密揭露", summary: "隐藏已久的秘密浮出水面，主角对世界的认知产生了根本动摇。" },
-  { title: "艰难抉择", summary: "面临两难困境，每条路都意味着巨大的代价，主角不得不做出选择。" },
-  { title: "绝境反转", summary: "在最危急的时刻，主角发挥出潜藏的力量，完成了惊天逆转。" },
-  { title: "心境蜕变", summary: "经历一系列磨砺之后，主角的心境发生了质的变化，更加成熟。" },
-  { title: "终极对决", summary: "与最大的敌人展开决战，所有伏笔在这一章集中爆发。" },
-  { title: "尘埃落定", summary: "一切归于平静，主角站在新的起点，新的旅程即将开始。" },
-]
-
-const GENRE_ACT_TEMPLATES: Record<string, string[]> = {
-  玄幻修真: [
-    "铺垫：交代修行境界与所在环境",
-    "冲突：与对手或天地异象正面交锋",
-    "高潮：灵脉突破或功法顿悟",
-    "转折：意想不到的人物或秘密出现",
-    "收束：为下一幕埋下伏笔",
-  ],
-  悬疑推理: [
-    "场景：雾中现场的第一印象",
-    "线索：发现矛盾细节，展开推理",
-    "转折：表象背后的隐藏逻辑",
-    "危机：侦探陷入危险或困境",
-    "收束：新的疑团浮现，引向下一章",
-  ],
-  科幻太空: [
-    "环境：深空的孤寂与科技感",
-    "冲突：人与AI或人与人之间的对立",
-    "发现：未知信号或异常数据",
-    "危机：系统故障或外部威胁",
-    "收束：决策后果显现，留下悬念",
-  ],
-}
-
-const DEFAULT_ACT_TEMPLATES = [
-  "铺垫与引入，交代时间、地点和人物状态",
-  "事件发展，矛盾逐步激化",
-  "高潮冲突，情节推至顶点",
-  "转折点出现，形势发生变化",
-  "尾声与收束，为下一章做好铺垫",
-]
-
 function buildMockOutline(
   novel: Novel,
   chapterCount: number,
   actsPerChapter: number,
 ): MockChapter[] {
-  const chapterTemplates =
-    GENRE_CHAPTER_TEMPLATES[novel.genre] ?? DEFAULT_CHAPTER_TEMPLATES
-  const actTemplates = GENRE_ACT_TEMPLATES[novel.genre] ?? DEFAULT_ACT_TEMPLATES
+  const templateKey = resolveGenreTemplateKey(novel.genre)
+  const chapterTemplates = getChapterTemplates(templateKey)
+  const actTemplates = getActTemplates(templateKey)
   return Array.from({ length: chapterCount }, (_, ci) => {
     const t = chapterTemplates[ci % chapterTemplates.length]
     return {
@@ -307,7 +222,7 @@ function SectionOverview({
   novelId: string
 }) {
   const router = useRouter()
-  const gradient = getGradient(novel.genre)
+  const gradient = getGenreGradient(novel.genre)
 
   return (
     <div className="flex flex-col gap-8 max-w-3xl">
@@ -429,16 +344,26 @@ function SectionBasicInfo({
 }) {
   const [local, setLocal] = useState({
     title: novel.title,
-    genre: novel.genre,
     synopsis: novel.synopsis,
     targetWordCount: novel.targetWordCount ?? "",
     writingLanguage: novel.writingLanguage ?? "现代白话文",
   })
+  const [genreTags, setGenreTags] = useState(() => parseGenres(novel.genre))
+
+  useEffect(() => {
+    setLocal({
+      title: novel.title,
+      synopsis: novel.synopsis,
+      targetWordCount: novel.targetWordCount ?? "",
+      writingLanguage: novel.writingLanguage ?? "现代白话文",
+    })
+    setGenreTags(parseGenres(novel.genre))
+  }, [novel.id, novel.title, novel.genre, novel.synopsis, novel.targetWordCount, novel.writingLanguage])
 
   function save() {
     patch(() => ({
       title: local.title || novel.title,
-      genre: local.genre || novel.genre,
+      genre: formatGenres(genreTags) || novel.genre,
       synopsis: local.synopsis,
       targetWordCount: local.targetWordCount ? Number(local.targetWordCount) : undefined,
       writingLanguage: local.writingLanguage,
@@ -456,9 +381,12 @@ function SectionBasicInfo({
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">类型 / 题材</label>
-          <Input value={local.genre}
-            onChange={(e) => setLocal((s) => ({ ...s, genre: e.target.value }))}
-            onBlur={save} placeholder="如：玄幻修真、悬疑推理、都市言情" />
+          <NovelGenrePicker
+            value={genreTags}
+            onChange={(tags) => {
+              setGenreTags(tags)
+            }}
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">简介</label>

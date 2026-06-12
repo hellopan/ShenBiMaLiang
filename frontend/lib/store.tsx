@@ -27,7 +27,7 @@ const seedNovels: Novel[] = [
   {
     id: "n1",
     title: "剑落星河",
-    genre: "玄幻修真",
+    genre: "修真",
     synopsis:
       "少年林墨自边陲小镇崛起，手持残破古剑，踏上问鼎星河之巅的修行长路。一场跨越万载的阴谋，正随他的脚步缓缓揭开。",
     updatedAt: Date.now() - 1000 * 60 * 42,
@@ -74,7 +74,7 @@ const seedNovels: Novel[] = [
   {
     id: "n2",
     title: "雾都侦探手记",
-    genre: "悬疑推理",
+    genre: "悬疑",
     synopsis:
       "在常年笼罩浓雾的港口城市，落魄侦探沈瑜接手一桩离奇失踪案。线索如雾中灯火，明灭不定，真相却比浓雾更令人窒息。",
     updatedAt: Date.now() - 1000 * 60 * 60 * 5,
@@ -94,7 +94,7 @@ const seedNovels: Novel[] = [
   {
     id: "n3",
     title: "星舰挽歌",
-    genre: "科幻太空",
+    genre: "星际",
     synopsis:
       "人类最后的方舟星舰在深空中航行了三百年。当唯一的导航AI开始产生自我意识，船上幸存者们必须面对一个选择：信任，还是毁灭。",
     updatedAt: Date.now() - 1000 * 60 * 60 * 24 * 2,

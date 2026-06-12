@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
-import { X, Plus } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Plus } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -13,10 +13,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
+import { TagInput } from "@/components/ui/tag-input"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
-import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field"
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { type Entry } from "@/lib/types"
 import { uid, useStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
@@ -131,7 +131,6 @@ function CategoryCombobox({
 export function EntryDialog({ open, onOpenChange, initial, onSave }: Props) {
   const { entries } = useStore()
   const [draft, setDraft] = useState<Entry>(empty())
-  const [keywordInput, setKeywordInput] = useState("")
 
   const availableCategories = useMemo(() => {
     const cats = new Set<string>(PREDEFINED_CATEGORIES)
@@ -142,29 +141,11 @@ export function EntryDialog({ open, onOpenChange, initial, onSave }: Props) {
   useEffect(() => {
     if (open) {
       setDraft(initial ? { ...initial } : empty())
-      setKeywordInput("")
     }
   }, [open, initial])
 
   function set<K extends keyof Entry>(key: K, value: Entry[K]) {
     setDraft((d) => ({ ...d, [key]: value }))
-  }
-
-  function addKeyword() {
-    const kw = keywordInput.trim()
-    if (kw && !draft.keywords.includes(kw)) {
-      set("keywords", [...draft.keywords, kw])
-    }
-    setKeywordInput("")
-  }
-
-  function onKeywordKey(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault()
-      addKeyword()
-    } else if (e.key === "Backspace" && !keywordInput && draft.keywords.length) {
-      set("keywords", draft.keywords.slice(0, -1))
-    }
   }
 
   function submit() {
@@ -211,31 +192,12 @@ export function EntryDialog({ open, onOpenChange, initial, onSave }: Props) {
           </Field>
           <Field>
             <FieldLabel htmlFor="e-kw">关键词</FieldLabel>
-            <div className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-lg border border-input bg-input/30 px-2 py-1.5">
-              {draft.keywords.map((kw) => (
-                <Badge key={kw} variant="secondary" className="gap-1">
-                  {kw}
-                  <button
-                    type="button"
-                    onClick={() => set("keywords", draft.keywords.filter((k) => k !== kw))}
-                    aria-label={`移除 ${kw}`}
-                    className="transition-colors hover:text-destructive"
-                  >
-                    <X className="size-3" />
-                  </button>
-                </Badge>
-              ))}
-              <input
-                id="e-kw"
-                value={keywordInput}
-                onChange={(e) => setKeywordInput(e.target.value)}
-                onKeyDown={onKeywordKey}
-                onBlur={addKeyword}
-                placeholder={draft.keywords.length ? "" : "输入后回车添加"}
-                className="min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-              />
-            </div>
-            <FieldDescription>回车或逗号添加，用于触发词条匹配。</FieldDescription>
+            <TagInput
+              id="e-kw"
+              tags={draft.keywords}
+              onChange={(keywords) => set("keywords", keywords)}
+              description="回车或逗号添加，用于触发词条匹配。"
+            />
           </Field>
           <Field>
             <FieldLabel htmlFor="e-regex">正则匹配</FieldLabel>
