@@ -93,7 +93,6 @@ app/
 ├── prompts/page.tsx        # 提示词库（全局 + 小说级词条）
 ├── stats/page.tsx          # 统计分析（占位）
 ├── logs/page.tsx           # 请求日志（占位）
-├── encyclopedia/page.tsx   # 世界观词条（独立页）
 ├── novel/[id]/page.tsx     # 小说详情（多 Section 单页应用）
 └── editor/[id]/page.tsx    # 章节幕编辑器
 ```
@@ -109,7 +108,6 @@ app/
 | `/editor/[id]` | `app/editor/[id]/page.tsx` | ✅ 章节幕编辑器 + AI 提示词面板 |
 | `/prompts` | `app/prompts/page.tsx` | ✅ 全局提示词库 |
 | `/settings` | `app/settings/page.tsx` | ✅ 模型配置、主题切换 |
-| `/encyclopedia` | `app/encyclopedia/page.tsx` | ✅ 独立词条管理页 |
 | `/inspiration` | `app/inspiration/page.tsx` | 🔜 占位：即将推出 |
 | `/stats` | `app/stats/page.tsx` | 🔜 占位：即将推出 |
 | `/logs` | `app/logs/page.tsx` | 🔜 占位：即将推出 |
@@ -142,7 +140,6 @@ components/
 ├── model-dialog.tsx
 ├── entry-dialog.tsx
 ├── novel-card.tsx
-├── page-header.tsx
 ├── app-logo.tsx
 └── theme-provider.tsx
 ```
@@ -211,7 +208,7 @@ components/
 
 #### 其他
 
-- **世界观词条**（`/encyclopedia` 及小说详情内嵌）
+- **世界观词条**（小说详情 Section · 世界词条）
 - **关于**（`/about`）：更新日志与版本信息
 
 ### 🔜 占位 / 规划中

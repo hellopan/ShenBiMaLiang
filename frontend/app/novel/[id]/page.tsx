@@ -140,6 +140,7 @@ export default function NovelDetailPage({ params }: { params: Promise<{ id: stri
         <main className="flex flex-1 flex-col overflow-hidden">
           {/* Scrollable section content */}
           <div className="flex-1 overflow-y-auto px-8 py-8">
+            <div className="mx-auto w-full max-w-5xl min-h-full">
             {activeSection === "overview" && (
               <SectionOverview
                 novel={novel}
@@ -196,6 +197,7 @@ export default function NovelDetailPage({ params }: { params: Promise<{ id: stri
             {activeSection === "character-status" && <SectionPlaceholder icon={Users} title="人物状态" description="追踪每个章节中角色的状态变化、属性成长与当前处境" />}
             {activeSection === "characters" && <SectionPlaceholder icon={GitFork} title="人物关系图" description="可视化展示小说中角色之间的关系网络，支持自定义关系类型" />}
             {activeSection === "export" && <SectionExport novel={novel} />}
+            </div>
           </div>
         </main>
       </div>
@@ -219,7 +221,7 @@ function SectionOverview({
   const gradient = getGenreGradient(novel.genre)
 
   return (
-    <div className="flex flex-col gap-8 max-w-3xl">
+    <div className="flex flex-col gap-8">
       {/* Cover + synopsis */}
       <div className="flex gap-6">
         <div
@@ -327,6 +329,23 @@ function SectionOverview({
 }
 
 // ── Section: 基本信息 ─────────────────────────────────────────────────────
+function BasicInfoField({
+  label,
+  className,
+  children,
+}: {
+  label: string
+  className?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      <label className="text-sm font-medium">{label}</label>
+      {children}
+    </div>
+  )
+}
+
 function SectionBasicInfo({
   novel,
   patch,
@@ -419,39 +438,34 @@ function SectionBasicInfo({
   }, [formData])
 
   return (
-    <div className="flex max-w-2xl flex-col gap-8">
+    <div className="flex w-full flex-col gap-6">
       <SectionCompletenessBar title="资料完整度" {...completenessDisplay} />
-      <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">书名</label>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-6">
+        <BasicInfoField label="书名" className="lg:col-span-3">
           <Input value={local.title}
             onChange={(e) => setLocal((s) => ({ ...s, title: e.target.value }))}
             onBlur={save} placeholder="小说书名" />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">类型 / 题材</label>
+        </BasicInfoField>
+        <BasicInfoField label="目标字数" className="lg:col-span-3">
+          <Input type="number" value={local.targetWordCount}
+            onChange={(e) => setLocal((s) => ({ ...s, targetWordCount: e.target.value }))}
+            onBlur={save} placeholder="全书目标字数（可选）" />
+        </BasicInfoField>
+        <BasicInfoField label="类型 / 题材" className="lg:col-span-6">
           <NovelGenrePicker
             value={genreTags}
             onChange={(tags) => {
               setGenreTags(tags)
             }}
           />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">简介</label>
+        </BasicInfoField>
+        <BasicInfoField label="简介" className="lg:col-span-6">
           <Textarea value={local.synopsis}
             onChange={(e) => setLocal((s) => ({ ...s, synopsis: e.target.value }))}
             onBlur={save} placeholder="用几句话概括你的故事……"
-            rows={4} className="resize-none" />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">目标字数</label>
-          <Input type="number" value={local.targetWordCount}
-            onChange={(e) => setLocal((s) => ({ ...s, targetWordCount: e.target.value }))}
-            onBlur={save} placeholder="全书目标字数（可选）" />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">叙事视角</label>
+            rows={5} className="resize-none" />
+        </BasicInfoField>
+        <BasicInfoField label="叙事视角" className="lg:col-span-2">
           <PresetTagPicker
             id="novel-perspective"
             presets={NARRATIVE_PERSPECTIVES}
@@ -461,9 +475,8 @@ function SectionBasicInfo({
             placeholder="如：第三人称有限视角（跟随主角）"
             description="明确第一人称或第三人称有限，避免生成时人称混乱"
           />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">故事基调</label>
+        </BasicInfoField>
+        <BasicInfoField label="故事基调" className="lg:col-span-2">
           <PresetTagPicker
             id="novel-tone"
             presets={STORY_TONES}
@@ -472,9 +485,8 @@ function SectionBasicInfo({
             placeholder="输入自定义基调"
             description="建议 2–3 个形容词，如热血、治愈、悬疑"
           />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">剧情节奏</label>
+        </BasicInfoField>
+        <BasicInfoField label="剧情节奏" className="lg:col-span-2">
           <PresetTagPicker
             id="novel-pacing"
             presets={PLOT_PACINGS}
@@ -484,15 +496,14 @@ function SectionBasicInfo({
             placeholder="如：中等偏快，每章都有小高潮"
             description="简明描述节奏，如「快节奏爽文，每章有冲突」"
           />
-        </div>
-        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+        </BasicInfoField>
+        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen} className="lg:col-span-6">
           <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm font-medium transition-colors hover:bg-muted/50">
             <ChevronDown className={cn("size-4 shrink-0 transition-transform", !advancedOpen && "-rotate-90")} />
             高级配置（可选）
           </CollapsibleTrigger>
-          <CollapsibleContent className="flex flex-col gap-5 pt-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">感情线设置</label>
+          <CollapsibleContent className="grid grid-cols-1 gap-5 pt-4 md:grid-cols-2">
+            <BasicInfoField label="感情线设置">
               <PresetTagPicker
                 id="novel-romance"
                 presets={ROMANCE_LINE_PRESETS}
@@ -501,9 +512,8 @@ function SectionBasicInfo({
                 placeholder="如：单主线（与师妹苏瑶），慢热型"
                 description="写清单/多线/无，及感情发展速度"
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">主要冲突类型</label>
+            </BasicInfoField>
+            <BasicInfoField label="主要冲突类型">
               <PresetTagPicker
                 id="novel-conflict"
                 presets={CONFLICT_TYPE_PRESETS}
@@ -512,7 +522,7 @@ function SectionBasicInfo({
                 placeholder="输入自定义冲突类型"
                 description="可选多个，预览时用 + 连接"
               />
-            </div>
+            </BasicInfoField>
           </CollapsibleContent>
         </Collapsible>
       </div>
@@ -905,7 +915,7 @@ function SectionExport({ novel }: { novel: Novel }) {
   }
 
   return (
-    <div className="grid gap-5 sm:grid-cols-2 max-w-2xl">
+    <div className="grid gap-5 sm:grid-cols-2">
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">

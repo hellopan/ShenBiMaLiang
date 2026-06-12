@@ -29,7 +29,7 @@ function getCategoryColor(category: string): string {
 }
 
 type Props = {
-  novelId?: string
+  novelId: string
 }
 
 export function EncyclopediaPanel({ novelId }: Props) {
@@ -43,7 +43,7 @@ export function EncyclopediaPanel({ novelId }: Props) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return entries.filter((e) => {
-      const matchNovel = !novelId || e.novelId === novelId
+      const matchNovel = e.novelId === novelId
       const matchCat = filter === "全部" || e.category === filter
       const matchQuery =
         !q ||
@@ -65,7 +65,7 @@ export function EncyclopediaPanel({ novelId }: Props) {
   }
 
   function save(entry: Entry) {
-    const entryWithNovel: Entry = novelId && !entry.novelId ? { ...entry, novelId } : entry
+    const entryWithNovel: Entry = { ...entry, novelId }
     const exists = entries.some((e) => e.id === entryWithNovel.id)
     if (exists) {
       updateEntry(entryWithNovel.id, entryWithNovel)
