@@ -1,7 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Plus } from "lucide-react"
+import { useEffect, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -14,14 +13,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { TagInput } from "@/components/ui/tag-input"
+import { PresetTagPicker } from "@/components/preset-tag-picker"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { ENTRY_CATEGORIES } from "@/lib/entry-categories"
 import { type Entry } from "@/lib/types"
-import { uid, useStore } from "@/lib/store"
-import { cn } from "@/lib/utils"
-
-const PREDEFINED_CATEGORIES = ["角色", "地名", "物品", "功法"]
+import { uid } from "@/lib/store"
 
 type Props = {
   open: boolean
@@ -41,102 +39,8 @@ const empty = (): Entry => ({
   active: true,
 })
 
-// ── Combobox for category selection ──────────────────────────────────────────
-function CategoryCombobox({
-  value,
-  onChange,
-  categories,
-}: {
-  value: string
-  onChange: (v: string) => void
-  categories: string[]
-}) {
-  const [open, setOpen] = useState(false)
-  const [input, setInput] = useState(value)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    setInput(value)
-  }, [value])
-
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (!containerRef.current?.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
-  }, [])
-
-  const filtered = categories.filter((c) =>
-    c.toLowerCase().includes(input.toLowerCase()),
-  )
-  const trimmed = input.trim()
-  const showNew = trimmed !== "" && !categories.some((c) => c === trimmed)
-
-  function select(val: string) {
-    onChange(val)
-    setInput(val)
-    setOpen(false)
-  }
-
-  return (
-    <div ref={containerRef} className="relative">
-      <Input
-        value={input}
-        onChange={(e) => {
-          setInput(e.target.value)
-          setOpen(true)
-        }}
-        onFocus={() => setOpen(true)}
-        placeholder="选择或输入分类"
-      />
-      {open && (filtered.length > 0 || showNew) && (
-        <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-border bg-popover shadow-md">
-          {filtered.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={cn(
-                "flex w-full items-center px-3 py-1.5 text-sm transition-colors hover:bg-accent",
-                c === value && "bg-accent/60 font-medium",
-              )}
-              onMouseDown={(e) => {
-                e.preventDefault()
-                select(c)
-              }}
-            >
-              {c}
-            </button>
-          ))}
-          {showNew && (
-            <button
-              type="button"
-              className="flex w-full items-center gap-1.5 border-t border-border px-3 py-1.5 text-sm text-primary transition-colors hover:bg-accent"
-              onMouseDown={(e) => {
-                e.preventDefault()
-                select(trimmed)
-              }}
-            >
-              <Plus className="size-3 shrink-0" />
-              新建分类：{trimmed}
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Main dialog ───────────────────────────────────────────────────────────────
 export function EntryDialog({ open, onOpenChange, initial, onSave }: Props) {
-  const { entries } = useStore()
   const [draft, setDraft] = useState<Entry>(empty())
-
-  const availableCategories = useMemo(() => {
-    const cats = new Set<string>(PREDEFINED_CATEGORIES)
-    entries.forEach((e) => cats.add(e.category))
-    return [...cats]
-  }, [entries])
 
   useEffect(() => {
     if (open) {
@@ -174,10 +78,13 @@ export function EntryDialog({ open, onOpenChange, initial, onSave }: Props) {
           </Field>
           <Field>
             <FieldLabel htmlFor="e-cat">分类</FieldLabel>
-            <CategoryCombobox
-              value={draft.category}
-              onChange={(v) => set("category", v)}
-              categories={availableCategories}
+            <PresetTagPicker
+              id="e-cat"
+              presets={ENTRY_CATEGORIES}
+              value={draft.category ? [draft.category] : []}
+              onChange={(tags) => set("category", tags[0] ?? "角色")}
+              single
+              placeholder="选择或输入分类"
             />
           </Field>
           <Field>
@@ -197,17 +104,6 @@ export function EntryDialog({ open, onOpenChange, initial, onSave }: Props) {
               tags={draft.keywords}
               onChange={(keywords) => set("keywords", keywords)}
               description="回车或逗号添加，用于触发词条匹配。"
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="e-regex">正则匹配</FieldLabel>
-            <Textarea
-              id="e-regex"
-              rows={2}
-              placeholder="例如：林墨|墨儿"
-              value={draft.regexPatterns}
-              onChange={(e) => set("regexPatterns", e.target.value)}
-              className="font-mono text-xs"
             />
           </Field>
           <Field>

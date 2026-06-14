@@ -14,6 +14,7 @@ import {
   GripVertical,
   PenLine,
   RefreshCw,
+  Save,
   Sparkles,
   Users,
 } from "lucide-react"
@@ -526,7 +527,13 @@ function SectionBasicInfo({
           </CollapsibleContent>
         </Collapsible>
       </div>
-      <Button onClick={save} className="self-start">保存信息</Button>
+      <Button
+        onClick={save}
+        className="h-12 justify-center self-start rounded-xl px-8 text-base font-semibold"
+      >
+        <Save className="size-5" />
+        保存信息
+      </Button>
     </div>
   )
 }
